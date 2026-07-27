@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "rm -rf .next && NEXT_DISABLE_DEVTOOLS=1 next dev --port 5000 --hostname 0.0.0.0",
     "clean:next": "rm -rf .next",

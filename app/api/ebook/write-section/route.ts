@@ -9,6 +9,40 @@ import { stripAudienceLanguage } from "@/lib/editorial-style-bible";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+function jsonKeepAlive<T>(work: () => Promise<T>): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      // Keep proxies/CDNs from treating long model generation as an idle upstream.
+      const keepAlive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(" "));
+        } catch {
+          // Stream may already be closed.
+        }
+      }, 12000);
+
+      try {
+        const payload = await work();
+        controller.enqueue(encoder.encode(JSON.stringify(payload)));
+      } finally {
+        clearInterval(keepAlive);
+        try { controller.close(); } catch { /* already closed */ }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 /** Emergency rewrite fallback — fires when the primary structured call fails or returns
  *  empty paragraphs. Uses a simple generateText call to produce clean book prose from
  *  the raw excerpts rather than dumping unedited transcript into the book. */
@@ -859,13 +893,14 @@ Now write the section prose:`;
     planSequenceIds: z.array(z.number().int().nonnegative()).default([]),
   });
 
-  try {
-    const paragraphPlan = assignment.assignedPlan ?? [];
-    if (paragraphPlan.length > 0) {
-      console.log(`[write-section] Using chapter-level plan (${paragraphPlan.length} entries) for Ch${assignment.chapterNumber} §${assignment.sectionNumber}`);
-    } else {
-      console.log(`[write-section] No paragraph plan — writing from key points + excerpts directly for Ch${assignment.chapterNumber} §${assignment.sectionNumber}`);
-    }
+  return jsonKeepAlive(async () => {
+    try {
+      const paragraphPlan = assignment.assignedPlan ?? [];
+      if (paragraphPlan.length > 0) {
+        console.log(`[write-section] Using chapter-level plan (${paragraphPlan.length} entries) for Ch${assignment.chapterNumber} §${assignment.sectionNumber}`);
+      } else {
+        console.log(`[write-section] No paragraph plan — writing from key points + excerpts directly for Ch${assignment.chapterNumber} §${assignment.sectionNumber}`);
+      }
 
     // Build a per-request system prompt: Voice DNA at the top (system-level weight),
     // then the dedup prohibition block if any points have already been covered.
@@ -1006,23 +1041,24 @@ Now write the section prose:`;
       unfullfilledHook = openingHook;
       console.warn(`[write-section] Unfulfilled hook in Ch${assignment.chapterNumber} §${assignment.sectionNumber}: "${openingHook.slice(0, 80)}"`);
     }
-    return NextResponse.json({
-      body,
-      claimLedger: object.claimLedger ?? [],
-      passiveVoiceCount: passiveHits.length,
-      unfullfilledHook,
-      sequenceBreakCount,
-    }, { status: 200 });
-  } catch (err) {
-    const fallbackBody = stripAudienceLanguage(normalizeReaderFacingProse(await fallbackSectionBody(assignment)));
-    return NextResponse.json({
-      body: fallbackBody,
-      claimLedger: [],
-      fallback: true,
-      error: err instanceof Error && err.message.trim() ? err.message : "Section write used transcript fallback",
-      details: err instanceof Error && err.stack
-        ? err.stack.split("\n").slice(0, 3).join(" | ")
-        : undefined,
-    }, { status: 200 });
-  }
+      return {
+        body,
+        claimLedger: object.claimLedger ?? [],
+        passiveVoiceCount: passiveHits.length,
+        unfullfilledHook,
+        sequenceBreakCount,
+      };
+    } catch (err) {
+      const fallbackBody = stripAudienceLanguage(normalizeReaderFacingProse(await fallbackSectionBody(assignment)));
+      return {
+        body: fallbackBody,
+        claimLedger: [],
+        fallback: true,
+        error: err instanceof Error && err.message.trim() ? err.message : "Section write used transcript fallback",
+        details: err instanceof Error && err.stack
+          ? err.stack.split("\n").slice(0, 3).join(" | ")
+          : undefined,
+      };
+    }
+  });
 }
