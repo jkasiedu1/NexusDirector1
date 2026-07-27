@@ -775,16 +775,38 @@ function ChapterCard({
             </div>
           )}
 
-          {chapter.sections.map((s) => (
-            <div key={s.sectionNumber}>
+          {chapter.sections.map((s, sectionIndex) => {
+            const heading = s.heading?.trim() || `Section ${sectionIndex + 1}`;
+            return (
+            <div key={s.sectionNumber} className={editable ? "space-y-2 rounded-xl border border-slate-700/50 bg-slate-900/50 p-3" : ""}>
               {editable ? (
-                <ProseEditor
-                  label={s.heading}
-                  value={s.body ?? ""}
-                  onChange={(v) => patchSection(s.sectionNumber, { body: v, wordCount: countWords(v) })}
-                  rows={10}
-                  placeholder="Write section body…"
-                />
+                <>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[220px] flex-1">
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Subsection Title</label>
+                      <input
+                        value={s.heading}
+                        onChange={(e) => patchSection(s.sectionNumber, { heading: e.target.value })}
+                        placeholder={`Section ${sectionIndex + 1}`}
+                        className="w-full min-h-[48px] rounded-xl border border-slate-700/60 bg-slate-950/70 px-3 py-2 text-base text-slate-100 outline-none ring-0 focus:border-cyan-500/40"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSection(s.sectionNumber)}
+                      className="min-h-[48px] rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200"
+                    >
+                      Delete Subsection
+                    </button>
+                  </div>
+                  <ProseEditor
+                    label={heading}
+                    value={s.body ?? ""}
+                    onChange={(v) => patchSection(s.sectionNumber, { body: v, wordCount: countWords(v) })}
+                    rows={10}
+                    placeholder="Write section body…"
+                  />
+                </>
               ) : (
                 <>
                   <p className="text-xs font-semibold text-cyan-400/80 mb-1">{s.heading}</p>
@@ -794,7 +816,7 @@ function ChapterCard({
                 </>
               )}
             </div>
-          ))}
+          );})}
 
           {editable ? (
             <div className="grid gap-3 md:grid-cols-2">
@@ -1474,11 +1496,13 @@ export function EbookPipeline({
   ebookManifest,
   onManifestReady,
   onPipelineSnapshotChange,
+  onJobStateChange,
   onSaveProject,
 }: {
   ebookManifest?: EbookManifest | null;
   onManifestReady?: (manifest: EbookManifest) => void;
   onPipelineSnapshotChange?: (snapshot: EbookPipelineSnapshot | null) => void;
+  onJobStateChange?: (jobState: EbookJobState | null) => void;
   /** Called when the user clicks Save inside the pipeline. Receives the chosen project name. */
   onSaveProject?: (name: string) => void;
 } = {}) {
@@ -1590,9 +1614,10 @@ export function EbookPipeline({
       updatedAt: new Date().toISOString(),
     };
     savedJobRef.current = updated;
+    onJobStateChange?.(updated);
     try { localStorage.setItem(JOB_STATE_KEY, JSON.stringify(updated)); } catch {}
     try { await saveEbookJob(updated); } catch {}
-  }, [sourceTranscripts]);
+  }, [onJobStateChange, sourceTranscripts]);
 
   const downloadSourceMap = useCallback(() => {
     if (sectionAssignments.length === 0) {
@@ -1973,6 +1998,7 @@ export function EbookPipeline({
 
     const restore = (job: EbookJobState) => {
       savedJobRef.current = job;
+      onJobStateChange?.(job);
       const filterInfo = parseSignalFilterLog(job.errorLog ?? []);
       setSignalFilterState(filterInfo.state);
       setSignalFilterDetail(filterInfo.detail);
@@ -2200,11 +2226,15 @@ export function EbookPipeline({
           createdAt: now,
           updatedAt: now,
         };
+    savedJobRef.current = { ...acc };
+    onJobStateChange?.({ ...acc });
     const checkpoint = async (s: PipelineStage) => {
       acc.status = s;
       acc.currentStage = s;
       acc.errorLog = logRef.current;
       acc.updatedAt = new Date().toISOString();
+      savedJobRef.current = { ...acc };
+      onJobStateChange?.({ ...acc });
       // Primary: localStorage (synchronous, always available)
       try { localStorage.setItem(JOB_STATE_KEY, JSON.stringify(acc)); } catch { /* quota */ }
       // Secondary: IndexedDB
@@ -3192,6 +3222,7 @@ export function EbookPipeline({
       try { await saveEbookJob({ ...acc }); } catch { /* ignore */ }
       // Update savedJobRef so the Resume button has the partial state
       savedJobRef.current = { ...acc };
+      onJobStateChange?.({ ...acc });
       setStage("failed");
       addLog(`✗ Error: ${msg}`);
     }

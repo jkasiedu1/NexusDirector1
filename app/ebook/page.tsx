@@ -51,6 +51,7 @@ function EbookPageClient() {
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
   const [ebookManifest, setEbookManifest] = useState<EbookManifest | null>(null);
   const [ebookPipelineSnapshot, setEbookPipelineSnapshot] = useState<EbookPipelineSnapshot | null>(null);
+  const liveJobStateRef = useRef<EbookJobState | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [siteConfig] = useState<SiteConfig>(() => SiteConfigSchema.parse({}));
@@ -287,11 +288,16 @@ function EbookPageClient() {
 
   const handleSaveProject = useCallback(async (name: string) => {
     try {
-      // 1. Try localStorage (written continuously during pipeline runs)
-      const raw = localStorage.getItem(JOB_STATE_KEY);
-      let parsedRaw: unknown = raw ? JSON.parse(raw) as unknown : null;
+      // 1. Prefer the live in-memory job state from the running pipeline.
+      let parsedRaw: unknown = liveJobStateRef.current;
 
-      // 2. Fall back to IndexedDB (persists across refreshes and localStorage clears)
+      // 2. Fall back to localStorage (written continuously during pipeline runs)
+      if (!parsedRaw) {
+        const raw = localStorage.getItem(JOB_STATE_KEY);
+        parsedRaw = raw ? JSON.parse(raw) as unknown : null;
+      }
+
+      // 3. Fall back to IndexedDB (persists across refreshes and localStorage clears)
       if (!parsedRaw) {
         const jobId = localStorage.getItem(JOB_STORAGE_KEY);
         if (jobId) {
@@ -300,7 +306,7 @@ function EbookPageClient() {
         }
       }
 
-      // 3. Fall back to last-loaded project state
+      // 4. Fall back to last-loaded project state
       if (!parsedRaw) {
         const fallbackProject = currentProjectId
           ? projects.find((p) => p.id === currentProjectId)
@@ -312,7 +318,24 @@ function EbookPageClient() {
         setStatusMsg({ type: "error", text: "Nothing to save yet — start the pipeline first." });
         return;
       }
-      const jobState = EbookJobStateSchema.parse(parsedRaw);
+      const parsedJobState = EbookJobStateSchema.parse(parsedRaw);
+      const jobState = ebookManifest
+        ? {
+            ...parsedJobState,
+            chapters: ebookManifest.chapters,
+            frontMatter: ebookManifest.frontMatter,
+            backMatter: ebookManifest.backMatter ?? null,
+            architecture: parsedJobState.architecture
+              ? {
+                  ...parsedJobState.architecture,
+                  bookTitle: ebookManifest.bookTitle,
+                  subtitle: ebookManifest.subtitle,
+                  authorName: ebookManifest.authorName,
+                }
+              : parsedJobState.architecture,
+            updatedAt: new Date().toISOString(),
+          }
+        : parsedJobState;
       const id = currentProjectId || generateEbookProjectId();
       const existing = projects.find((p) => p.id === id);
       const project: EbookProject = {
@@ -331,6 +354,7 @@ function EbookPageClient() {
       };
       await saveEbookProject(project);
       localStorage.setItem(JOB_STATE_KEY, JSON.stringify(project.jobState));
+      liveJobStateRef.current = project.jobState;
       setCurrentProjectId(id);
       setProjects(await listEbookProjects());
       setStatusMsg({ type: "success", text: `"${name}" saved.` });
@@ -361,13 +385,14 @@ function EbookPageClient() {
     } catch (err) {
       setStatusMsg({ type: "error", text: err instanceof Error ? err.message : "Save failed." });
     }
-  }, [currentProjectId, projects]);
+  }, [currentProjectId, ebookManifest, projects]);
 
   const handleLoadProject = useCallback((id: string) => {
     const p = projects.find((proj) => proj.id === id);
     if (!p) return;
     try {
       localStorage.setItem(JOB_STATE_KEY, JSON.stringify(p.jobState));
+      liveJobStateRef.current = p.jobState;
       setCurrentProjectId(p.id);
       const job = p.jobState;
       if (job.architecture && job.frontMatter && job.contentMap) {
@@ -454,6 +479,7 @@ function EbookPageClient() {
     setProjects(await listEbookProjects());
     setCurrentProjectId(project.id);
     localStorage.setItem(JOB_STATE_KEY, JSON.stringify(project.jobState));
+    liveJobStateRef.current = project.jobState;
     setPipelineKey((k) => k + 1);
     // Mirror imported project to cloud snapshot store (best-effort)
     fetch("/api/projects", {
@@ -653,6 +679,7 @@ function EbookPageClient() {
     }
 
     hydratedLoadRef.current = null;
+    liveJobStateRef.current = null;
     setCurrentProjectId("");
     setEbookManifest(null);
     setEbookPipelineSnapshot(null);
@@ -793,6 +820,9 @@ function EbookPageClient() {
                   ebookManifest={ebookManifest}
                   onManifestReady={handleManifestReady}
                   onPipelineSnapshotChange={handlePipelineSnapshotChange}
+                  onJobStateChange={(job) => {
+                    liveJobStateRef.current = job;
+                  }}
                   onSaveProject={(name) => void handleSaveProject(name)}
                 />
               </div>
