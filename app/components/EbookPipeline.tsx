@@ -1729,7 +1729,7 @@ export function EbookPipeline({
   setQualityReport(null);
   setError(null);
   setStage("complete");
-  setReviewTab("manuscript");
+  setReviewTab((prev) => (prev === "source-map" ? "source-map" : "manuscript"));
   // Build a minimal reviewContext so the export UI is available even without a full job state
   setReviewContext({
     contentMap: {
