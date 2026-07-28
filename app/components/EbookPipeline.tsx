@@ -25,7 +25,7 @@ import type {
   EbookJobState,
   EbookManifest,
 } from "@/lib/schemas/ebook";
-import { SectionAssignmentSchema } from "@/lib/schemas/ebook";
+import { SectionAssignmentSchema, EbookJobStateSchema } from "@/lib/schemas/ebook";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +159,68 @@ async function streamSection(
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function toIsoOrNow(value: unknown, nowIso: string): string {
+  if (typeof value !== "string") return nowIso;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? new Date(ts).toISOString() : nowIso;
+}
+
+function sanitizeJobStateForPersistence(input: EbookJobState): EbookJobState {
+  const nowIso = new Date().toISOString();
+  const seen = new WeakSet<object>();
+
+  let plain: unknown;
+  try {
+    plain = JSON.parse(JSON.stringify(input, (_key, value: unknown) => {
+      if (typeof value === "function") return undefined;
+      if (typeof value === "bigint") return Number(value);
+      if (value && typeof value === "object") {
+        if (seen.has(value as object)) return undefined;
+        seen.add(value as object);
+      }
+      return value;
+    }));
+  } catch {
+    plain = {};
+  }
+
+  const record = (plain && typeof plain === "object") ? (plain as Record<string, unknown>) : {};
+  const normalized: Record<string, unknown> = {
+    ...record,
+    jobId: typeof record.jobId === "string" && record.jobId.trim().length > 0 ? record.jobId : newJobId(),
+    status: typeof record.status === "string" ? record.status : "idle",
+    createdAt: toIsoOrNow(record.createdAt, nowIso),
+    updatedAt: toIsoOrNow(record.updatedAt, nowIso),
+  };
+
+  const parsed = EbookJobStateSchema.safeParse(normalized);
+  if (parsed.success) return parsed.data;
+
+  return {
+    jobId: String(normalized.jobId),
+    status: "idle",
+    audioFileNames: [],
+    transcripts: [],
+    masterTranscript: "",
+    filteredTranscript: "",
+    filterRemovedCount: 0,
+    voiceDNA: null,
+    contentMap: null,
+    architecture: null,
+    sectionAssignments: [],
+    sections: [],
+    chapters: [],
+    frontMatter: null,
+    backMatter: null,
+    exportUrls: null,
+    currentStage: "",
+    progress: { total: 0, completed: 0 },
+    errorLog: [],
+    createdAt: toIsoOrNow(normalized.createdAt, nowIso),
+    updatedAt: toIsoOrNow(normalized.updatedAt, nowIso),
+  };
 }
 
 // ─── Upgrade 4 (writer): Illustration / story label extractor ────────────────
@@ -1613,15 +1675,16 @@ export function EbookPipeline({
       transcripts: nextTranscripts,
       updatedAt: new Date().toISOString(),
     };
-    savedJobRef.current = updated;
-    onJobStateChange?.(updated);
+    const persistableUpdated = sanitizeJobStateForPersistence(updated);
+    savedJobRef.current = persistableUpdated;
+    onJobStateChange?.(persistableUpdated);
     try { 
-      localStorage.setItem(JOB_STATE_KEY, JSON.stringify(updated)); 
+      localStorage.setItem(JOB_STATE_KEY, JSON.stringify(persistableUpdated)); 
     } catch (err) {
       addLog(`⚠ localStorage save failed: ${err instanceof Error ? err.message : 'quota exceeded'}`);
     }
     try { 
-      await saveEbookJob(updated); 
+      await saveEbookJob(persistableUpdated); 
     } catch (err) {
       addLog(`⚠ IndexedDB save failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     }
@@ -2241,17 +2304,18 @@ export function EbookPipeline({
       acc.currentStage = s;
       acc.errorLog = logRef.current;
       acc.updatedAt = new Date().toISOString();
-      savedJobRef.current = { ...acc };
-      onJobStateChange?.({ ...acc });
+      const persistableAcc = sanitizeJobStateForPersistence({ ...acc });
+      savedJobRef.current = { ...persistableAcc };
+      onJobStateChange?.({ ...persistableAcc });
       // Primary: localStorage (synchronous, always available)
       try { 
-        localStorage.setItem(JOB_STATE_KEY, JSON.stringify(acc)); 
+        localStorage.setItem(JOB_STATE_KEY, JSON.stringify(persistableAcc)); 
       } catch (err) {
         addLog(`⚠ localStorage checkpoint failed: ${err instanceof Error ? err.message : 'quota exceeded'}`);
       }
       // Secondary: IndexedDB
       try { 
-        await saveEbookJob({ ...acc }); 
+        await saveEbookJob({ ...persistableAcc }); 
       } catch (err) {
         addLog(`⚠ IndexedDB checkpoint failed: ${err instanceof Error ? err.message : 'unknown error'}`);
       }
@@ -3213,14 +3277,15 @@ export function EbookPipeline({
       acc.currentStage = "failed";
       acc.errorLog = logRef.current;
       acc.updatedAt = new Date().toISOString();
+      const persistableFailure = sanitizeJobStateForPersistence({ ...acc });
       try { 
-        await saveEbookJob({ ...acc }); 
+        await saveEbookJob({ ...persistableFailure }); 
       } catch (err) {
         addLog(`⚠ Front matter save failed: ${err instanceof Error ? err.message : 'unknown error'}`);
       }
       // Update savedJobRef so the Resume button has the partial state
-      savedJobRef.current = { ...acc };
-      onJobStateChange?.({ ...acc });
+      savedJobRef.current = { ...persistableFailure };
+      onJobStateChange?.({ ...persistableFailure });
       setStage("failed");
       addLog(`✗ Error: ${msg}`);
     }
