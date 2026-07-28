@@ -185,9 +185,10 @@ function ToolbarBtn({
       type="button"
       title={title}
       onMouseDown={(e) => {
-        e.preventDefault(); // keep focus in editor
-        onClick(e);
+        // Keep focus in editor so document.execCommand acts on the active selection.
+        e.preventDefault();
       }}
+      onClick={onClick}
       className={[
         "flex items-center justify-center rounded-lg min-w-[36px] min-h-[36px] px-2 text-sm transition-colors select-none",
         active
