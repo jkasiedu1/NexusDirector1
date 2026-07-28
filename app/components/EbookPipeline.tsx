@@ -2997,6 +2997,28 @@ export function EbookPipeline({
           ));
         }
 
+        // ── Upgrade 6: Post-write n-gram similarity gate ──────────────────
+        if (writtenCorpus.length > 200) {
+          const dupSentences = detectDuplicateSentences(body, writtenCorpus);
+          if (dupSentences.length > 0) {
+            addLog(`  ↺ Upgrade 6: ${dupSentences.length} duplicate sentence(s) detected — redrafting with explicit exclusion…`);
+            const redraftExclusion: SectionAssignment = {
+              ...augmented,
+              priorSectionsSample: [
+                ...buildProseSampleForDedup(assignment.chapterNumber),
+                ...dupSentences.map((s) => `[EXACT DUPLICATE — DO NOT REPRODUCE]: "${s.slice(0, 120)}"`).slice(0, 10),
+              ],
+              // Carry the HARD SKIP list from the original augmented object so the redraft
+              // retains the full list of already-covered points in its system prompt.
+              alreadyCoveredPoints: augmented.alreadyCoveredPoints ?? [],
+            };
+            ({ body, claimLedger, passiveVoiceCount, unfullfilledHook, sequenceBreakCount } = await streamSection(
+              redraftExclusion,
+              (authorInstructions || targetAudience) ? { instructions: authorInstructions, targetAudience } : undefined
+            ));
+          }
+        }
+
         // ── Upgrade 8: Log passive voice hits ────────────────────────────
         if (passiveVoiceCount > 0) {
           addLog(`  ⚠ ${passiveVoiceCount} passive voice hit(s) in Ch${assignment.chapterNumber} §${assignment.sectionNumber}`);
