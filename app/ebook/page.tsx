@@ -284,58 +284,91 @@ function EbookPageClient() {
     }
   }, []);
 
+  const normalizeJobStateForSave = useCallback((value: unknown): EbookJobState | null => {
+    if (!value || typeof value !== "object") return null;
+
+    const nowIso = new Date().toISOString();
+    const record = value as Record<string, unknown>;
+
+    let storedJobId: string | null = null;
+    try {
+      const rawStoredJobId = localStorage.getItem(JOB_STORAGE_KEY);
+      if (rawStoredJobId && rawStoredJobId.trim().length > 0) {
+        storedJobId = rawStoredJobId.trim();
+      }
+    } catch {
+      storedJobId = null;
+    }
+
+    const toIso = (input: unknown): string => {
+      if (typeof input !== "string") return nowIso;
+      const ts = Date.parse(input);
+      return Number.isFinite(ts) ? new Date(ts).toISOString() : nowIso;
+    };
+
+    const rawStatus = typeof record.status === "string" ? record.status : "idle";
+    const normalized: Record<string, unknown> = {
+      ...record,
+      jobId: typeof record.jobId === "string" && record.jobId.trim().length > 0
+        ? record.jobId
+        : (storedJobId ?? `job-${Date.now()}`),
+      status: VALID_JOB_STATUSES.has(rawStatus) ? rawStatus : "idle",
+      createdAt: toIso(record.createdAt),
+      updatedAt: toIso(record.updatedAt),
+    };
+
+    const parsed = EbookJobStateSchema.safeParse(normalized);
+    return parsed.success ? parsed.data : null;
+  }, []);
+
   // ── Project handlers ──────────────────────────────────────────────────────
 
   const handleSaveProject = useCallback(async (name: string) => {
     try {
-      // 1. Prefer the live in-memory job state from the running pipeline.
-      let parsedRaw: unknown = liveJobStateRef.current;
+      const raw = localStorage.getItem(JOB_STATE_KEY);
+      const fallbackProject = currentProjectId
+        ? projects.find((p) => p.id === currentProjectId)
+        : null;
+      let parsedRaw: unknown = liveJobStateRef.current ?? fallbackProject?.jobState;
 
-      // 2. Fall back to localStorage (written continuously during pipeline runs)
-      if (!parsedRaw) {
-        const raw = localStorage.getItem(JOB_STATE_KEY);
-        parsedRaw = raw ? JSON.parse(raw) as unknown : null;
-      }
-
-      // 3. Fall back to IndexedDB (persists across refreshes and localStorage clears)
-      if (!parsedRaw) {
-        const jobId = localStorage.getItem(JOB_STORAGE_KEY);
-        if (jobId) {
-          const idbJob = await getEbookJob(jobId).catch(() => null);
-          if (idbJob) parsedRaw = idbJob;
+      if (raw) {
+        try {
+          parsedRaw = JSON.parse(raw) as unknown;
+        } catch {
+          parsedRaw = liveJobStateRef.current ?? fallbackProject?.jobState;
         }
       }
 
-      // 4. Fall back to last-loaded project state
-      if (!parsedRaw) {
-        const fallbackProject = currentProjectId
-          ? projects.find((p) => p.id === currentProjectId)
-          : null;
-        if (fallbackProject?.jobState) parsedRaw = fallbackProject.jobState;
+      let jobState = normalizeJobStateForSave(parsedRaw);
+      if (!jobState) {
+        const savedJobId = localStorage.getItem(JOB_STORAGE_KEY);
+        if (savedJobId) {
+          parsedRaw = await getEbookJob(savedJobId).catch(() => null);
+          jobState = normalizeJobStateForSave(parsedRaw);
+        }
       }
 
-      if (!parsedRaw) {
+      if (!jobState) {
         setStatusMsg({ type: "error", text: "Nothing to save yet — start the pipeline first." });
         return;
       }
-      const parsedJobState = EbookJobStateSchema.parse(parsedRaw);
-      const jobState = ebookManifest
+      jobState = ebookManifest
         ? {
-            ...parsedJobState,
+            ...jobState,
             chapters: ebookManifest.chapters,
             frontMatter: ebookManifest.frontMatter,
             backMatter: ebookManifest.backMatter ?? null,
-            architecture: parsedJobState.architecture
+            architecture: jobState.architecture
               ? {
-                  ...parsedJobState.architecture,
+                  ...jobState.architecture,
                   bookTitle: ebookManifest.bookTitle,
                   subtitle: ebookManifest.subtitle,
                   authorName: ebookManifest.authorName,
                 }
-              : parsedJobState.architecture,
+              : jobState.architecture,
             updatedAt: new Date().toISOString(),
           }
-        : parsedJobState;
+        : jobState;
       const id = currentProjectId || generateEbookProjectId();
       const existing = projects.find((p) => p.id === id);
       const project: EbookProject = {
@@ -385,7 +418,7 @@ function EbookPageClient() {
     } catch (err) {
       setStatusMsg({ type: "error", text: err instanceof Error ? err.message : "Save failed." });
     }
-  }, [currentProjectId, ebookManifest, projects]);
+  }, [currentProjectId, ebookManifest, normalizeJobStateForSave, projects]);
 
   const handleLoadProject = useCallback((id: string) => {
     const p = projects.find((proj) => proj.id === id);
