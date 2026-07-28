@@ -1615,8 +1615,16 @@ export function EbookPipeline({
     };
     savedJobRef.current = updated;
     onJobStateChange?.(updated);
-    try { localStorage.setItem(JOB_STATE_KEY, JSON.stringify(updated)); } catch {}
-    try { await saveEbookJob(updated); } catch {}
+    try { 
+      localStorage.setItem(JOB_STATE_KEY, JSON.stringify(updated)); 
+    } catch (err) {
+      addLog(`⚠ localStorage save failed: ${err instanceof Error ? err.message : 'quota exceeded'}`);
+    }
+    try { 
+      await saveEbookJob(updated); 
+    } catch (err) {
+      addLog(`⚠ IndexedDB save failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+    }
   }, [onJobStateChange, sourceTranscripts]);
 
   const downloadSourceMap = useCallback(() => {
@@ -2236,9 +2244,17 @@ export function EbookPipeline({
       savedJobRef.current = { ...acc };
       onJobStateChange?.({ ...acc });
       // Primary: localStorage (synchronous, always available)
-      try { localStorage.setItem(JOB_STATE_KEY, JSON.stringify(acc)); } catch { /* quota */ }
+      try { 
+        localStorage.setItem(JOB_STATE_KEY, JSON.stringify(acc)); 
+      } catch (err) {
+        addLog(`⚠ localStorage checkpoint failed: ${err instanceof Error ? err.message : 'quota exceeded'}`);
+      }
       // Secondary: IndexedDB
-      try { await saveEbookJob({ ...acc }); } catch { /* silently fail */ }
+      try { 
+        await saveEbookJob({ ...acc }); 
+      } catch (err) {
+        addLog(`⚠ IndexedDB checkpoint failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      }
     };
 
     try {
@@ -2906,7 +2922,7 @@ export function EbookPipeline({
           ));
         }
 
-        // Quality gate: retry once if too short
+        // Quality gate: retry once if too short (transcript coverage check)
         const wc = countWords(body);
         if (wc < 300 && assignment.transcriptExcerpts.join(" ").length > 500) {
           addLog(`  ↺ Section too short (${wc} words) — retrying with expansion prompt…`);
@@ -2915,28 +2931,6 @@ export function EbookPipeline({
             expanded,
             (authorInstructions || targetAudience) ? { instructions: authorInstructions, targetAudience } : undefined
           ));
-        }
-
-        // ── Upgrade 6: Post-write n-gram similarity gate ──────────────────
-        if (writtenCorpus.length > 200) {
-          const dupSentences = detectDuplicateSentences(body, writtenCorpus);
-          if (dupSentences.length > 0) {
-            addLog(`  ↺ Upgrade 6: ${dupSentences.length} duplicate sentence(s) detected — redrafting with explicit exclusion…`);
-            const redraftExclusion: SectionAssignment = {
-              ...augmented,
-              priorSectionsSample: [
-                ...buildProseSampleForDedup(assignment.chapterNumber),
-                ...dupSentences.map((s) => `[EXACT DUPLICATE — DO NOT REPRODUCE]: "${s.slice(0, 120)}"`).slice(0, 10),
-              ],
-              // Carry the HARD SKIP list from the original augmented object so the redraft
-              // retains the full list of already-covered points in its system prompt.
-              alreadyCoveredPoints: augmented.alreadyCoveredPoints ?? [],
-            };
-            ({ body, claimLedger, passiveVoiceCount, unfullfilledHook, sequenceBreakCount } = await streamSection(
-              redraftExclusion,
-              (authorInstructions || targetAudience) ? { instructions: authorInstructions, targetAudience } : undefined
-            ));
-          }
         }
 
         // ── Upgrade 8: Log passive voice hits ────────────────────────────
@@ -3219,7 +3213,11 @@ export function EbookPipeline({
       acc.currentStage = "failed";
       acc.errorLog = logRef.current;
       acc.updatedAt = new Date().toISOString();
-      try { await saveEbookJob({ ...acc }); } catch { /* ignore */ }
+      try { 
+        await saveEbookJob({ ...acc }); 
+      } catch (err) {
+        addLog(`⚠ Front matter save failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      }
       // Update savedJobRef so the Resume button has the partial state
       savedJobRef.current = { ...acc };
       onJobStateChange?.({ ...acc });

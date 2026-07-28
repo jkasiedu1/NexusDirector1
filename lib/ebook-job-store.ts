@@ -21,14 +21,27 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveEbookJob(state: EbookJobState): Promise<void> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put({ ...state, updatedAt: new Date().toISOString() });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+export async function saveEbookJob(state: EbookJobState, retries = 2): Promise<void> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const db = await openDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).put({ ...state, updatedAt: new Date().toISOString() });
+        tx.oncomplete = () => {
+          console.log(`[ebook-job-store] Saved job ${state.jobId} (${state.currentStage})`);
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      });
+      return;
+    } catch (err) {
+      const isLastAttempt = attempt === retries;
+      console.error(`[ebook-job-store] Save failed (attempt ${attempt + 1}/${retries + 1}):`, err);
+      if (isLastAttempt) throw err;
+      await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+    }
+  }
 }
 
 export async function getEbookJob(jobId: string): Promise<EbookJobState | null> {
