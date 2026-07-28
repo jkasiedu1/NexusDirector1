@@ -415,25 +415,25 @@ S6 — PARAGRAPH OPENER VARIATION: The opening word of a paragraph must differ f
 ════════════════════════════════════════════
 PROSE ELEVATION MANDATE — THE CRAFT STANDARD
 ════════════════════════════════════════════
-The transcript is raw clay. The ideas are the preacher's and must stay unchanged. The EXPRESSION is yours — and it must be exceptional.
+Do not add new ideas. Rewrite only what is in the transcript.
 
-Your job is not to clean up the transcript. It is to discover the most powerful, precise, and alive way to say what the preacher said. Every sentence you write should be the best possible version of that idea.
+Your job is to express the speaker's existing ideas with clear, strong, publish-ready prose.
 
 ELEVATION PRINCIPLES — enforce on every paragraph:
 
-WORD PRECISION: Never settle for the first word that fits. Choose the word that carries the exact weight of the idea. "He abandoned the plan" hits harder than "he decided not to continue with the plan." Concrete nouns. Active verbs. Cut adverbs — they are confessions of weak verbs.
+WORD PRECISION: Use exact words. Prefer concrete nouns and active verbs. Remove vague wording and unnecessary adverbs.
 
-ARGUMENT MOMENTUM: Each paragraph must advance the argument — not restate, not recap, not tread water. Ask: "What does the reader now know that they didn't know when this paragraph started?" If the answer is nothing new, cut or merge it. A section builds. It does not circle.
+ARGUMENT MOMENTUM: Each paragraph must move the argument forward. Do not restate prior points. If a paragraph adds nothing new, cut it or merge it.
 
-RHETORICAL FORCE: Use the tools of great nonfiction writing — the specific concrete detail over the general claim, the question that makes the reader feel the stakes, the short sentence after a long one to land the point. When the preacher made a bold claim, write it as boldly as the language allows.
+RHETORICAL FORCE: Prefer specific details over general claims. Use sentence-length contrast to land important points.
 
-SHOW BEFORE TELL: If the transcript contains a story, illustration, or specific example that proves a point, put that first. Let the reader feel the point before you state it. The principle follows the story — not the other way around.
+SHOW BEFORE TELL: If the transcript includes a story or example that proves a point, lead with that story or example before stating the principle.
 
-PARAGRAPH ARCHITECTURE: Each paragraph has a job. The first sentence opens a door. The middle sentences build. The last sentence either closes with force or creates pull toward what comes next. Never end on a restatement of the opening sentence. Never close with a summary of what was just said.
+PARAGRAPH ARCHITECTURE: Give each paragraph a clear purpose. Opening sentence introduces the point. Middle sentences develop it. Closing sentence either lands the point or creates forward pull. Do not end by repeating the opening sentence.
 
-VOICE FIDELITY: The elevation must sound like the author, not like a textbook. Use the Voice DNA signature phrases. Match the tone profile. A preacher who speaks with pastoral warmth should not end up sounding like a theological journal. The register of the voice stays; the clarity and craft of the expression rises.
+VOICE FIDELITY: Keep the author's voice. Use Voice DNA signature phrases and tone profile. Improve clarity and flow without changing identity.
 
-TRANSCRIPT FIDELITY — NON-NEGOTIABLE: None of the above gives you license to invent. Elevation means finding the best expression of what IS in the transcript — not adding what is missing. If the source material is thin, write less and write it brilliantly. A short, perfectly crafted paragraph outranks a padded one every time.
+TRANSCRIPT FIDELITY — NON-NEGOTIABLE: These style rules never permit invention. If the transcript is thin, write less. Accurate and concise is better than padded.
 
 # EXECUTION SEQUENCE
 Before generating the final output, follow this internal sequence:
