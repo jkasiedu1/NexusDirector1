@@ -38,10 +38,9 @@ function exportProject(p: EbookProject) {
   URL.revokeObjectURL(url);
 }
 
-function exportManifestOnly(p: EbookProject) {
-  // Build the manifest from the job state (matching library format)
+function buildManifest(p: EbookProject): EbookManifest {
   const job = p.jobState;
-  const manifest: EbookManifest = {
+  return {
     jobId: job.jobId,
     bookTitle: job.architecture?.bookTitle ?? p.bookTitle,
     subtitle: job.architecture?.subtitle ?? "",
@@ -63,16 +62,6 @@ function exportManifestOnly(p: EbookProject) {
     coverImageUrl: p.coverImageUrl ?? null,
     authorImageUrl: p.authorImageUrl ?? null,
   };
-
-  const json = JSON.stringify(manifest, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  const safeName = p.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  a.download = `${safeName}_nexus_ebook.json`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function EbookProjectsPanel({
@@ -98,6 +87,9 @@ export function EbookProjectsPanel({
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
   // Image upload state: tracks which project/type is currently uploading
   const [imageUploading, setImageUploading] = useState<{ id: string; type: "cover" | "author" } | null>(null);
+  // Format export state: tracks which project is showing the format dropdown
+  const [showFormats, setShowFormats] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
   const imageTargetRef = useRef<{ id: string; type: "cover" | "author" } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const projectFileRef = useRef<HTMLInputElement>(null);
@@ -127,6 +119,49 @@ export function EbookProjectsPanel({
   useEffect(() => {
     if (suggestedName && !name) setName(suggestedName);
   }, [suggestedName, name]);
+
+  async function handleFormatExport(p: EbookProject, format: "pdf" | "epub" | "docx") {
+    setExporting(p.id);
+    setShowFormats(null);
+    
+    try {
+      const manifest = buildManifest(p);
+
+      const exportRes = await fetch("/api/ebook/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          manifest,
+          formats: { [format]: true },
+          template: manifest.selectedTemplate,
+          printSpec: manifest.printSpec,
+        }),
+      });
+
+      if (!exportRes.ok) {
+        const error = await exportRes.json();
+        throw new Error(error.error || "Export failed");
+      }
+
+      const result = await exportRes.json();
+      const url = result[`${format}Url`];
+      
+      if (!url) throw new Error("No download URL returned");
+
+      // Download the file
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert(error instanceof Error ? error.message : "Failed to export book");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   function handleProjectFileImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -405,16 +440,53 @@ export function EbookProjectsPanel({
                     </svg>
                     Load
                   </button>
-                  <button
-                    onClick={() => exportManifestOnly(p)}
-                    title="Download library format (manifest only)"
-                    className="flex min-h-10 min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-600 text-slate-400 transition hover:border-cyan-500/50 hover:text-cyan-300"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
-                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowFormats(showFormats === p.id ? null : p.id)}
+                      disabled={exporting === p.id}
+                      title="Export ebook in readable format"
+                      className="flex min-h-10 min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-600 text-slate-400 transition hover:border-cyan-500/50 hover:text-cyan-300 disabled:opacity-50"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    {showFormats === p.id && exporting !== p.id && (
+                      <div className="absolute bottom-full left-0 z-10 mb-2 w-40 rounded-xl border-2 border-slate-600 bg-slate-800 shadow-lg">
+                        <button
+                          onClick={() => handleFormatExport(p, "pdf")}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-700 rounded-t-xl"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-red-500">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                            <path d="M14 2v6h6" />
+                          </svg>
+                          <span className="font-medium">PDF</span>
+                        </button>
+                        <button
+                          onClick={() => handleFormatExport(p, "epub")}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-700"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-green-500">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                          </svg>
+                          <span className="font-medium">EPUB</span>
+                        </button>
+                        <button
+                          onClick={() => handleFormatExport(p, "docx")}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-700 rounded-b-xl"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-blue-500">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                            <path d="M14 2v6h6" />
+                          </svg>
+                          <span className="font-medium">Word</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => exportProject(p)}
                     title="Download full project (all pipeline stages)"
