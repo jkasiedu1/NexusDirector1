@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EbookManifestSchema } from "@/lib/schemas/ebook";
 import { PublishedCatalogSchema } from "@/lib/schemas/published-book";
 import ReadingListButton from "./ReadingListButton";
+import { DownloadButton } from "./DownloadButton";
 
 export const revalidate = 60;
 
@@ -209,6 +210,11 @@ export default async function BookLandingPage({
                 >
                   Start Reading
                 </Link>
+                <DownloadButton 
+                  slug={slug} 
+                  bookTitle={manifest.bookTitle}
+                  accentBg={accentBg}
+                />
                 <ReadingListButton
                   accentBg={accentBg}
                   entry={{

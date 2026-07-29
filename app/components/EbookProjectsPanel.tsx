@@ -38,6 +38,43 @@ function exportProject(p: EbookProject) {
   URL.revokeObjectURL(url);
 }
 
+function exportManifestOnly(p: EbookProject) {
+  // Build the manifest from the job state (matching library format)
+  const job = p.jobState;
+  const manifest: EbookManifest = {
+    jobId: job.jobId,
+    bookTitle: job.architecture?.bookTitle ?? p.bookTitle,
+    subtitle: job.architecture?.subtitle ?? "",
+    authorName: job.architecture?.authorName ?? "Unknown Author",
+    frontMatter: job.frontMatter ?? {
+      preface: "",
+      introduction: "",
+      conclusion: "",
+      aboutAuthor: null,
+      resourcesList: [],
+      scriptureIndex: [],
+    },
+    chapters: job.chapters,
+    totalWordCount: p.totalWordCount,
+    allQuotes: job.contentMap?.allQuotes ?? [],
+    generatedAt: job.updatedAt,
+    selectedTemplate: "devotional",
+    printSpec: { trimSize: "6x9", runningHeaders: true, bleed: false, cropMarks: false, editableProof: false },
+    coverImageUrl: p.coverImageUrl ?? null,
+    authorImageUrl: p.authorImageUrl ?? null,
+  };
+
+  const json = JSON.stringify(manifest, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  const safeName = p.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  a.download = `${safeName}_nexus_ebook.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function EbookProjectsPanel({
   projects,
   suggestedName,
@@ -369,8 +406,18 @@ export function EbookProjectsPanel({
                     Load
                   </button>
                   <button
+                    onClick={() => exportManifestOnly(p)}
+                    title="Download library format (manifest only)"
+                    className="flex min-h-10 min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-600 text-slate-400 transition hover:border-cyan-500/50 hover:text-cyan-300"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <button
                     onClick={() => exportProject(p)}
-                    title="Download as JSON file"
+                    title="Download full project (all pipeline stages)"
                     className="flex min-h-10 min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-600 text-slate-400 transition hover:border-cyan-500/50 hover:text-cyan-300"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
