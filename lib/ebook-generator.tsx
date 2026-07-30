@@ -711,8 +711,15 @@ function writeScriptureBlock(doc: any, quote: { text: string; reference?: string
   const textX = doc.page.margins.left + tpl.scriptureIndent;
   const textWidth = contentWidth - tpl.scriptureIndent * 2;
 
+  // Clean the text: strip all markdown blockquote markers and other artifacts
+  const cleanedText = quote.text
+    .split("\n")
+    .map((line) => line.replace(/^(>\s*)+/, "").replace(/>\.?\s*/g, "").trim())
+    .filter((l) => l.length > 0)
+    .join("\n");
+  
   // Pre-split lines so we can estimate height before committing to a y-position
-  const verseLines = quote.text.split(/\n/).filter((l) => l.trim().length > 0);
+  const verseLines = cleanedText.split(/\n/).filter((l) => l.trim().length > 0);
 
   // Push to a fresh page if the block fits on one page but would otherwise split
   const lineH = tpl.scriptureFontSize * 1.6 + 4;
@@ -1185,9 +1192,10 @@ function stampTOC(
 
     // Measure title in its actual font to know how wide it renders
     doc.font(titleFont).fontSize(entrySize);
-    // Clamp title so it doesn't intrude on the dot area or page number
-    // Reserve space: 12pt gap before dots, dots area, 8pt gap before page number
-    const maxTitleW = textW - numW - pageNumW - 60;
+    // Calculate exact space needed for page number first
+    const pageNumActualW = Math.ceil(doc.widthOfString(pageStr));
+    // Reserve generous space: title space, 16pt gap, dots area, 10pt gap, page number
+    const maxTitleW = textW - numW - pageNumActualW - 80;
     let titleStr = title;
     while (titleStr.length > 1 && Math.ceil(doc.widthOfString(titleStr)) > maxTitleW) {
       titleStr = titleStr.slice(0, -1);
@@ -1205,23 +1213,23 @@ function stampTOC(
     doc.font(titleFont).fillColor(bold ? "#1a1a1a" : mutedColor)
       .text(titleStr, titleX, rowY, { width: maxTitleW, lineBreak: false });
 
-    // Dotted leaders: fill gap between title end and page number
-    // Fixed calculation: ensure dots stop well before page number
+    // Dotted leaders: strict boundary control to prevent overflow
     doc.font(fonts.serif).fontSize(entrySize - 1).fillColor("#bbbbbb");
     const dotW        = doc.widthOfString(".");
-    const dotSpacing  = dotW + 1.5;
-    const leaderStart = titleX + actualTitleW + 12; // 12pt gap after title
-    const leaderEnd   = mL + textW - pageNumW - 8;  // 8pt gap before page number
-    const leaderSpan  = leaderEnd - leaderStart;
+    const dotSpacing  = dotW + 2; // Slightly wider spacing
+    const leaderStart = titleX + actualTitleW + 16; // 16pt gap after title
+    const leaderEnd   = mL + textW - pageNumActualW - 10; // 10pt gap before page number
+    const leaderSpan  = Math.max(0, leaderEnd - leaderStart);
     const dotCount    = Math.max(0, Math.floor(leaderSpan / dotSpacing));
     if (dotCount > 0) {
       const dotsStr = Array(dotCount).fill(".").join("\u2009"); // thin-space separated
-      doc.text(dotsStr, leaderStart, rowY, { lineBreak: false });
+      doc.text(dotsStr, leaderStart, rowY, { lineBreak: false, width: leaderSpan });
     }
 
-    // Render page number flush-right with proper spacing
+    // Render page number flush-right with exact positioning
+    const pageNumX = mL + textW - pageNumActualW;
     doc.font(fonts.serif).fontSize(entrySize).fillColor(mutedColor)
-      .text(pageStr, mL + textW - pageNumW, rowY, { width: pageNumW, align: "right", lineBreak: false });
+      .text(pageStr, pageNumX, rowY, { width: pageNumActualW, align: "right", lineBreak: false });
   }
 
   // Front matter (no page numbers)
@@ -1290,17 +1298,33 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
   doc.moveDown(0.4);
 
 
-  // Epigraph (if present) - scripture quote as chapter opener
+  // Epigraph (scripture quote) - lighter italic, centered
   if (chapter.epigraph) {
     doc.moveDown(0.3);
-    writeRichBody(doc, chapter.epigraph, quotes, fonts, tpl, { italicFirstParagraph: true, noIndentFirstParagraph: true, align: "center" }, bodyFontSize);
-    doc.moveDown(0.6);
+    const epigraphText = stripMarkdownForPdf(applySmartTypography(chapter.epigraph));
+    doc.fontSize((bodyFontSize ?? tpl.bodyFontSize) - 0.5)
+      .font(fonts.serifItalic)
+      .fillColor("#444444")
+      .text(epigraphText, doc.page.margins.left, undefined, {
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        align: "center",
+        lineGap: 5
+      });
+    doc.moveDown(0.8);
   }
 
-  // Consolidated chapter opener: bold premise + provocative question
+  // Chapter intro ("northstar") - bold italic, centered, darker
   if (chapter.intro) {
-    writeRichBody(doc, chapter.intro, quotes, fonts, tpl, { italicFirstParagraph: true, noIndentFirstParagraph: true, align: "center" }, bodyFontSize);
-    doc.moveDown(0.8);
+    const introText = stripMarkdownForPdf(applySmartTypography(chapter.intro));
+    doc.fontSize(bodyFontSize ?? tpl.bodyFontSize)
+      .font(fonts.serifBold)
+      .fillColor("#1a1a1a")
+      .text(introText, doc.page.margins.left, undefined, {
+        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+        align: "center",
+        lineGap: 6
+      });
+    doc.moveDown(1.2);
   }
 
   let _firstSectionDone = false;
@@ -1308,11 +1332,8 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
     // Orphan prevention: if fewer than 5 body-line heights remain on this page, start a new one
     const _lineH = (bodyFontSize ?? tpl.bodyFontSize) + tpl.bodyLineGap;
     if (doc.page.height - doc.page.margins.bottom - doc.y < _lineH * 5) doc.addPage();
-    doc.moveDown(0.35);
-    doc.fontSize(tpl.sectionSize).font(fonts[tpl.sectionFont]).fillColor(tpl.sectionColor)
-      .text(section.heading, { align: tpl.sectionAlign });
-    if (tpl.sectionRule) writeDivider(doc, tpl);
-    doc.moveDown(0.5);
+    
+    // NO SECTION HEADINGS - skip section.heading rendering entirely
 
     // ── Amendment 4: Drop cap on the very first body paragraph of the chapter ──
     if (!_firstSectionDone && section.body) {
@@ -1558,12 +1579,18 @@ function frontMatterChapters(fm: FrontBackMatter, quotes: Quote[]): Array<{ titl
 function chapterToHtml(chapter: ChapterDraft, quotes: Quote[]): string {
   const parts: string[] = [];
 
-  if (chapter.intro) {
-    parts.push(quoteParagraphsToHtml(chapter.intro, quotes, { italicFirstParagraph: true }));
+  // Epigraph (scripture quote) - lighter italic
+  if (chapter.epigraph) {
+    parts.push(`<p class="chapter-epigraph" style="text-align: center; font-style: italic; color: #666;">${escapeHtml(chapter.epigraph)}</p>`);
   }
 
+  // Chapter intro (\"northstar\") - bold, centered
+  if (chapter.intro) {
+    parts.push(`<p class="chapter-intro" style="text-align: center; font-weight: bold;">${escapeHtml(chapter.intro)}</p>`);
+  }
+
+  // NO SECTION HEADINGS - skip section.heading rendering entirely
   for (const section of chapter.sections) {
-    parts.push(`<h2>${escapeHtml(section.heading)}</h2>`);
     parts.push(quoteParagraphsToHtml(section.body ?? "", quotes));
   }
 
@@ -1833,7 +1860,14 @@ export async function generateDocxBuffer(manifest: EbookManifest, templateId?: s
   const scriptureIndentTwips = Math.round(tpl.scriptureIndent * 20);
 
   function docxScriptureBlock(quote: { text: string; reference?: string; translation?: string }): Paragraph[] {
-    const verseLines = quote.text.split(/\n/).filter((l) => l.trim().length > 0);
+    // Clean the text: strip all markdown blockquote markers and artifacts
+    const cleanedText = quote.text
+      .split("\n")
+      .map((line) => line.replace(/^(>\s*)+/, "").replace(/>\.?\s*/g, "").trim())
+      .filter((l) => l.length > 0)
+      .join("\n");
+    
+    const verseLines = cleanedText.split(/\n/).filter((l) => l.trim().length > 0);
     const verseParagraphs = verseLines.map((line) =>
       new Paragraph({
         // Amendment 4: named style for publisher editorial workflows
@@ -2050,43 +2084,38 @@ export async function generateDocxBuffer(manifest: EbookManifest, templateId?: s
       })
     );
 
+    // Epigraph (scripture quote) - lighter italic, centered
     if (chapter.epigraph?.trim()) {
+      const cleanEpigraph = stripMarkdownForPdf(applySmartTypography(chapter.epigraph));
       cc.push(
         new Paragraph({
-          children: parseRunsForDocx(applySmartTypography(chapter.epigraph), bodyHalfPt, true),
+          children: [new TextRun({ text: cleanEpigraph, italics: true, size: bodyHalfPt - 1, color: "666666" })],
           alignment: AlignmentType.CENTER,
-          spacing: { after: paraSpacingAfter },
+          spacing: { before: 120, after: 200 },
         })
       );
     }
 
+    // Chapter intro ("northstar") - bold, centered, darker
     if (chapter.intro?.trim()) {
-      normalizeParagraphBreaks(chapter.intro)
+      const cleanIntro = stripMarkdownForPdf(applySmartTypography(chapter.intro));
+      normalizeParagraphBreaks(cleanIntro)
         .split(/\n{2,}/)
         .map((p) => p.trim())
         .filter(Boolean)
         .forEach((introPara) => {
           cc.push(
             new Paragraph({
-              children: parseRunsForDocx(markInlineScriptureRefs(applySmartTypography(introPara)), bodyHalfPt, true),
+              children: [new TextRun({ text: introPara, bold: true, size: bodyHalfPt })],
               alignment: AlignmentType.CENTER,
-              spacing: { after: paraSpacingAfter },
+              spacing: { before: 120, after: 240 },
             })
           );
         });
     }
 
+    // NO SECTION HEADINGS - skip section.heading rendering entirely
     for (const section of chapter.sections) {
-      if (section.heading) {
-        cc.push(
-          new Paragraph({
-            children: [new TextRun({ text: section.heading, bold: tpl.sectionFont.includes("Bold") || tpl.sectionFont === "serifBold" || tpl.sectionFont === "sansBold", size: Math.round(tpl.sectionSize * 2), color: tpl.sectionColor.replace("#", "") })],
-            heading: HeadingLevel.HEADING_2,
-            alignment: tpl.sectionAlign === "center" ? AlignmentType.CENTER : tpl.sectionAlign === "right" ? AlignmentType.RIGHT : AlignmentType.LEFT,
-            spacing: { before: 280, after: 160 },
-          })
-        );
-      }
       cc.push(...textToStyledParagraphs(section.body, true));
     }
 
