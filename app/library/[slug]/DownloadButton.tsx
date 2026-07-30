@@ -30,8 +30,12 @@ export function DownloadButton({ slug, bookTitle, accentBg }: DownloadButtonProp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           manifest,
-          formats: { [format]: true },
-          template: manifest.selectedTemplate,
+          formats: {
+            pdf: format === "pdf",
+            epub: format === "epub",
+            docx: format === "docx",
+          },
+          template: manifest.selectedTemplate || "devotional",
           printSpec: manifest.printSpec,
         }),
       });
