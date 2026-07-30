@@ -1003,23 +1003,30 @@ function writeRichBody(doc: any, text: string, quotes: Quote[], fonts: PdfFontSe
   // Track rendered index separately so dropped heading lines don't shift the
   // firstParagraph italic treatment onto the wrong paragraph.
   let renderedIndex = 0;
+  // Track when we just rendered a block element (scripture/blockquote) so the next
+  // paragraph can be set flush-left with no indent (standard book typography convention).
+  let justRenderedBlock = false;
   paragraphs.forEach((paragraph) => {
     // Detect AI-generated markdown blockquotes (> prefix) first
     const markdownQuote = parseMarkdownBlockquote(paragraph);
     if (markdownQuote) {
       writeScriptureBlock(doc, markdownQuote, fonts, tpl);
       renderedIndex++;
+      justRenderedBlock = true; // Next paragraph should have no indent
       return;
     }
     const matchingQuote = findMatchingBlockQuote(paragraph, quotes);
     if (matchingQuote) {
       writeScriptureBlock(doc, matchingQuote, fonts, tpl);
       renderedIndex++;
+      justRenderedBlock = true; // Next paragraph should have no indent
       return;
     }
 
+    // Industry standard: no indent for first paragraph OR first paragraph after block elements
     const noIndentFirst = options?.noIndentFirstParagraph !== false;
-    const indent = noIndentFirst && renderedIndex === 0 ? 0 : tpl.paragraphIndent;
+    const indent = (noIndentFirst && renderedIndex === 0) || justRenderedBlock ? 0 : tpl.paragraphIndent;
+    justRenderedBlock = false; // Reset after applying
     const textOpts = { lineGap: tpl.bodyLineGap, indent, paragraphGap: tpl.paragraphGap, align: tpl.bodyAlign };
 
     // ── Amendment 5: Widow / orphan protection ────────────────────────────────
