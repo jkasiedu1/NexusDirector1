@@ -676,6 +676,7 @@ function parseMarkdownBlockquote(paragraph: string): { text: string; reference?:
 
   // Handle inline ">.  BookName chapter:verse" separators embedded at the end of a verse line
   // e.g. LLM output: "...themselves. >. Genesis 3:6-7 (NIV)"
+  // Also handle ">" appearing mid-text as a separator
   let verseLines = refLineIdx > 0 ? lines.slice(0, refLineIdx) : lines;
   let inlineRef = "";
   if (refLineIdx < 0 && verseLines.length > 0) {
@@ -689,12 +690,17 @@ function parseMarkdownBlockquote(paragraph: string): { text: string; reference?:
     }
   }
 
+  // Strip any remaining stray ">" symbols from the verse text itself (edge case cleanup)
+  const cleanedVerseLines = verseLines.map((line) => 
+    line.replace(/>\s+/g, " ").replace(/>\./g, "").trim()
+  );
+
   const refRaw = inlineRef || (refLineIdx >= 0 ? lines[refLineIdx] : "");
   const refClean = refRaw.replace(/^\*?[\u2014\-\u2013]\s*/, "").replace(/\*$/, "").trim();
   const transMatch = refClean.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
 
   return {
-    text: verseLines.join("\n"),
+    text: cleanedVerseLines.join("\n"),
     reference: transMatch ? transMatch[1].trim() : (refClean || undefined),
     translation: transMatch ? transMatch[2].trim() : undefined,
   };
@@ -776,6 +782,7 @@ function normalizeParagraphBreaks(text: string): string {
  * - Heading lines (## / ###) are dropped entirely — the heading was already
  *   rendered above the body by writeChapter / writeFrontMatter.
  * - Horizontal rule lines are dropped.
+ * - Blockquote markers (> or > >) are stripped from line starts.
  * - Bold (** / __) and italic (* / _) markers are removed, preserving the
  *   inner text so emphasis words still appear — just not surrounded by *.
  */
@@ -784,6 +791,10 @@ function stripMarkdownForPdf(paragraph: string): string {
   if (/^#{1,6}\s+/.test(trimmed)) return ""; // heading line — drop
   if (/^[-*_]{3,}\s*$/.test(trimmed)) return ""; // horizontal rule — drop
   return paragraph
+    // Strip blockquote markers (> or > >) at the start of lines
+    .split("\n")
+    .map((line) => line.replace(/^(>\s*)+/, ""))
+    .join("\n")
     .replace(/\*\*\*(.+?)\*\*\*/gs, "$1")          // bold-italic
     .replace(/\*\*(.+?)\*\*/gs, "$1")              // bold
     .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "$1") // italic
@@ -1159,6 +1170,7 @@ function stampTOC(
   // ── Amendment 6: dotted-leader row helper (Chicago Manual §1.4) ──────────
   // Renders: [numLabel] [chapterTitle] [....] [pageNum]
   // The dot string is computed via widthOfString("." ) so the fill is pixel-exact.
+  // INDUSTRY UPGRADE: Fixed dot boundary to prevent overflow beyond page numbers
   function stampTocRow(
     numLabel: string,
     title: string,
@@ -1168,13 +1180,14 @@ function stampTOC(
   ) {
     doc.fontSize(entrySize).font(fonts.serif);
     const numW   = numLabel ? Math.ceil(doc.widthOfString(numLabel)) + 4 : 0;
-    const pageNumW = Math.ceil(doc.widthOfString(pageStr)) + 2;
+    const pageNumW = Math.ceil(doc.widthOfString(pageStr));
     const titleFont = bold ? fonts.serifBold : fonts.serif;
 
     // Measure title in its actual font to know how wide it renders
     doc.font(titleFont).fontSize(entrySize);
     // Clamp title so it doesn't intrude on the dot area or page number
-    const maxTitleW = textW - numW - pageNumW - 20;
+    // Reserve space: 12pt gap before dots, dots area, 8pt gap before page number
+    const maxTitleW = textW - numW - pageNumW - 60;
     let titleStr = title;
     while (titleStr.length > 1 && Math.ceil(doc.widthOfString(titleStr)) > maxTitleW) {
       titleStr = titleStr.slice(0, -1);
@@ -1193,11 +1206,12 @@ function stampTOC(
       .text(titleStr, titleX, rowY, { width: maxTitleW, lineBreak: false });
 
     // Dotted leaders: fill gap between title end and page number
+    // Fixed calculation: ensure dots stop well before page number
     doc.font(fonts.serif).fontSize(entrySize - 1).fillColor("#bbbbbb");
     const dotW        = doc.widthOfString(".");
     const dotSpacing  = dotW + 1.5;
-    const leaderStart = titleX + actualTitleW + 6;
-    const leaderEnd   = mL + textW - pageNumW - 4;
+    const leaderStart = titleX + actualTitleW + 12; // 12pt gap after title
+    const leaderEnd   = mL + textW - pageNumW - 8;  // 8pt gap before page number
     const leaderSpan  = leaderEnd - leaderStart;
     const dotCount    = Math.max(0, Math.floor(leaderSpan / dotSpacing));
     if (dotCount > 0) {
@@ -1205,7 +1219,7 @@ function stampTOC(
       doc.text(dotsStr, leaderStart, rowY, { lineBreak: false });
     }
 
-    // Render page number flush-right
+    // Render page number flush-right with proper spacing
     doc.font(fonts.serif).fontSize(entrySize).fillColor(mutedColor)
       .text(pageStr, mL + textW - pageNumW, rowY, { width: pageNumW, align: "right", lineBreak: false });
   }
@@ -1257,25 +1271,36 @@ function writeIntroduction(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
   doc.addPage();
-  doc.moveDown(tpl.chapterPreGap);
-  doc.fontSize(tpl.chapterLabelSize).font(fonts[tpl.chapterLabelFont]).fillColor(tpl.chapterLabelColor)
-    .text(tpl.chapterLabel(chapter.number), { align: tpl.chapterLabelAlign });
-  doc.moveDown(0.3)
+  // INDUSTRY UPGRADE: Enhanced chapter opener with more vertical breathing room
+  doc.moveDown(tpl.chapterPreGap + 1.5);
+  
+  // Chapter number in small caps (industry standard)
+  const chapterLabel = tpl.chapterLabel(chapter.number);
+  doc.fontSize(tpl.chapterLabelSize - 1).font(fonts.sans).fillColor(tpl.chapterLabelColor)
+    .text(chapterLabel.toUpperCase(), { align: tpl.chapterLabelAlign, characterSpacing: 0.5 });
+  
+  // Increased spacing between label and title for elegance
+  doc.moveDown(0.8)
     .fontSize(tpl.chapterTitleSize).font(fonts[tpl.chapterTitleFont]).fillColor(tpl.chapterTitleColor)
     .text(chapter.title, { align: tpl.chapterTitleAlign });
+  
+  // More refined divider with increased spacing
+  doc.moveDown(0.4);
   writeDivider(doc, tpl);
+  doc.moveDown(0.4);
 
 
-  // Epigraph (if present)
+  // Epigraph (if present) - scripture quote as chapter opener
   if (chapter.epigraph) {
+    doc.moveDown(0.3);
     writeRichBody(doc, chapter.epigraph, quotes, fonts, tpl, { italicFirstParagraph: true, noIndentFirstParagraph: true, align: "center" }, bodyFontSize);
-    doc.moveDown(0.2);
+    doc.moveDown(0.6);
   }
 
   // Consolidated chapter opener: bold premise + provocative question
   if (chapter.intro) {
     writeRichBody(doc, chapter.intro, quotes, fonts, tpl, { italicFirstParagraph: true, noIndentFirstParagraph: true, align: "center" }, bodyFontSize);
-    doc.moveDown(0.5);
+    doc.moveDown(0.8);
   }
 
   let _firstSectionDone = false;
