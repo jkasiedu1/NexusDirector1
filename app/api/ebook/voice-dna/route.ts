@@ -6,6 +6,77 @@ import { VoiceDNASchema, VoiceDNARequestSchema } from "@/lib/schemas/ebook";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
+function stripMarkdownFences(text: string): string {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+}
+
+function tryParseJsonObject(raw: string): unknown {
+  const text = stripMarkdownFences(raw);
+  const start = text.indexOf("{");
+  if (start < 0) throw new Error("No JSON object found in model response");
+
+  let inString = false;
+  let escaped = false;
+  const stack: string[] = [];
+  let lastCompleteObjectEnd = -1;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{") {
+      stack.push("}");
+      continue;
+    }
+
+    if (ch === "[") {
+      stack.push("]");
+      continue;
+    }
+
+    if (ch === "}" || ch === "]") {
+      const expected = stack.pop();
+      if (!expected || expected !== ch) {
+        continue;
+      }
+      if (stack.length === 0) {
+        lastCompleteObjectEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (lastCompleteObjectEnd >= 0) {
+    const strictSlice = text.slice(start, lastCompleteObjectEnd + 1);
+    return JSON.parse(strictSlice);
+  }
+
+  // Best-effort repair for truncated output: close open strings/containers, remove trailing commas.
+  let repaired = text.slice(start).trim();
+  if (inString && !escaped) repaired += '"';
+  repaired += stack.slice().reverse().join("");
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(repaired);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json() as unknown;
   let input;
@@ -122,12 +193,7 @@ closingPattern
         prompt: userPrompt,
       });
 
-      const cleaned = text
-        .trim()
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "");
-
-      const parsed = VoiceDNASchema.parse(JSON.parse(cleaned));
+      const parsed = VoiceDNASchema.parse(tryParseJsonObject(text));
       return NextResponse.json(parsed, { status: 200 });
     }
   } catch (err) {
