@@ -488,6 +488,7 @@ function slugifyFileName(input: string): string {
 function buildDocxParagraphs(markdown: string): Paragraph[] {
   const lines = markdown.split(/\r?\n/);
   const paragraphs: Paragraph[] = [];
+  let skipNextSectionTitle = false;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -503,12 +504,17 @@ function buildDocxParagraphs(markdown: string): Paragraph[] {
     }
 
     if (line.startsWith("## ")) {
+      if (skipNextSectionTitle) {
+        skipNextSectionTitle = false;
+        continue;
+      }
       paragraphs.push(new Paragraph({ text: line.slice(3), heading: HeadingLevel.HEADING_2 }));
       continue;
     }
 
     if (line.startsWith("# ")) {
       paragraphs.push(new Paragraph({ text: line.slice(2), heading: HeadingLevel.HEADING_1 }));
+      skipNextSectionTitle = true;
       continue;
     }
 
