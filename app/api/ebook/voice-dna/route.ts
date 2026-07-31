@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { deepSeekModel } from "@/lib/ai-providers";
 import { VoiceDNASchema, VoiceDNARequestSchema } from "@/lib/schemas/ebook";
 
@@ -28,14 +28,7 @@ export async function POST(req: NextRequest) {
     "[END]\n" + endSample,
   ].join("\n\n---\n\n");
 
-  try {
-    const { object } = await generateObject({
-      model: deepSeekModel,
-      schema: VoiceDNASchema,
-      mode: "json",
-      temperature: 0.2,
-      maxTokens: 5120,
-      system: `You are a master linguist and voice analyst who profiles published authors for professional ghostwriting engagements.
+  const systemPrompt = `You are a master linguist and voice analyst who profiles published authors for professional ghostwriting engagements.
 Your task: extract a precise, multi-dimensional Voice DNA from the provided transcript sample.
 
 CARDINAL RULE: Extract ONLY patterns directly evidenced in this transcript.
@@ -102,11 +95,41 @@ openingPattern
   How the author launches a new point or section.
 
 closingPattern
-  How the author lands and seals a point.`,
-      prompt: `Extract the author's Voice DNA from this transcript sample:\n\n${sampleTranscript}`,
-    });
+  How the author lands and seals a point.`;
 
-    return NextResponse.json(object, { status: 200 });
+  const userPrompt = `Extract the author's Voice DNA from this transcript sample:\n\n${sampleTranscript}`;
+
+  try {
+    try {
+      const { object } = await generateObject({
+        model: deepSeekModel,
+        schema: VoiceDNASchema,
+        mode: "json",
+        temperature: 0.2,
+        maxTokens: 5120,
+        system: systemPrompt,
+        prompt: userPrompt,
+      });
+
+      return NextResponse.json(object, { status: 200 });
+    } catch {
+      // DeepSeek occasionally returns near-JSON text in json mode; strict re-ask + local validation recovers safely.
+      const { text } = await generateText({
+        model: deepSeekModel,
+        temperature: 0.2,
+        maxTokens: 5120,
+        system: `${systemPrompt}\n\nReturn ONLY a valid JSON object. No markdown fences. No commentary.`,
+        prompt: userPrompt,
+      });
+
+      const cleaned = text
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "");
+
+      const parsed = VoiceDNASchema.parse(JSON.parse(cleaned));
+      return NextResponse.json(parsed, { status: 200 });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Voice DNA extraction failed";
     return NextResponse.json({ error: message }, { status: 500 });
