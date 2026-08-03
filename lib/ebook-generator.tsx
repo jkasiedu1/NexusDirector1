@@ -706,20 +706,17 @@ function writeDropCapParagraph(
     });
   }
 
-  // Position below drop cap
-  const afterNarrowY = doc.y;
-  if (afterNarrowY < capY + capH) {
+  // Ensure minimum vertical position past drop cap
+  if (doc.y < capY + capH) {
     doc.y = capY + capH;
   }
-  doc.x = mL;
 
-  // Render remainder at full width
+  // Render remainder at full width, flowing naturally from current position
   if (remainderText) {
-    doc.text(remainderText, mL, doc.y, {
+    doc.text(remainderText, mL, undefined, {
       width: contentW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
-      continued: false,
     });
   }
 
