@@ -931,6 +931,8 @@ function writeScriptureBlock(doc: any, quote: { text: string; reference?: string
   }
 
   doc.moveDown(0.75);
+  // Reset X position to left margin after scripture block to prevent margin carryover
+  doc.x = doc.page.margins.left;
 }
 
 /**
