@@ -567,7 +567,7 @@ export default function HomePage() {
           allQuotes:     job!.contentMap?.allQuotes ?? [],
           generatedAt:   job!.updatedAt ?? new Date().toISOString(),
           selectedTemplate: "devotional",
-          printSpec:     { trimSize: "6x9", runningHeaders: true },
+          printSpec:     { trimSize: "6x9", runningHeaders: true, folioStyle: "center", frontMatterNumbering: "arabic", sectionOrnament: "rule" },
         };
     const body = {
       manifest: publishManifest,

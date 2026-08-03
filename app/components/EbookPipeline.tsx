@@ -929,20 +929,35 @@ function ChapterCard({
 
 // ─── Print Specification Toggle ───────────────────────────────────────────────
 
+type PrintSpecType = {
+  trimSize: "6x9" | "5.5x8.5" | "5x8";
+  runningHeaders: boolean;
+  folioStyle?: "center" | "outside" | "none-on-openers";
+  frontMatterNumbering?: "arabic" | "roman" | "none";
+  sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
+};
+
 function PrintSpecPanel({
   trimSize,
   runningHeaders,
+  folioStyle = "center",
+  frontMatterNumbering = "arabic",
+  sectionOrnament = "rule",
   onChange,
 }: {
-  trimSize: "6x9" | "5.5x8.5";
+  trimSize: "6x9" | "5.5x8.5" | "5x8";
   runningHeaders: boolean;
-  onChange: (spec: { trimSize: "6x9" | "5.5x8.5"; runningHeaders: boolean }) => void;
+  folioStyle?: "center" | "outside" | "none-on-openers";
+  frontMatterNumbering?: "arabic" | "roman" | "none";
+  sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
+  onChange: (spec: PrintSpecType) => void;
 }) {
   const [open, setOpen] = useState(false);
 
-  const TRIM_OPTIONS: { value: "6x9" | "5.5x8.5"; label: string; sub: string }[] = [
+  const TRIM_OPTIONS: { value: "6x9" | "5.5x8.5" | "5x8"; label: string; sub: string }[] = [
     { value: "6x9",     label: "6 × 9 in",    sub: "US Trade (Zondervan, Nelson)" },
     { value: "5.5x8.5", label: "5.5 × 8.5 in", sub: "US Digest (Charisma, Hay House)" },
+    { value: "5x8",     label: "5 × 8 in",     sub: "Amazon Bestseller (CreateSpace)" },
   ];
 
   return (
@@ -960,7 +975,7 @@ function PrintSpecPanel({
           </svg>
           <span className="text-xs font-semibold uppercase tracking-widest text-slate-200">Print Specifications</span>
           <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
-            {trimSize === "6x9" ? "6×9" : "5.5×8.5"} · {runningHeaders ? "Headers on" : "No headers"}
+            {trimSize === "6x9" ? "6×9" : trimSize === "5.5x8.5" ? "5.5×8.5" : "5×8"} · {runningHeaders ? "Headers on" : "No headers"}
           </span>
         </div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`h-4 w-4 text-slate-500 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>
@@ -974,21 +989,21 @@ function PrintSpecPanel({
           {/* Trim size */}
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Trim Size</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {TRIM_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize: opt.value, runningHeaders })}
+                  onClick={() => onChange({ trimSize: opt.value, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament })}
                   className={[
-                    "flex flex-col items-start gap-0.5 rounded-xl border px-4 py-3 text-left transition-all min-h-[56px]",
+                    "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     trimSize === opt.value
                       ? "border-cyan-500/50 bg-cyan-500/10"
                       : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
                   ].join(" ")}
                 >
                   <span className={`text-sm font-bold tabular-nums ${trimSize === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
-                  <span className="text-[10px] text-slate-500">{opt.sub}</span>
+                  <span className="text-[10px] text-slate-500 leading-tight">{opt.sub}</span>
                 </button>
               ))}
             </div>
@@ -1001,13 +1016,13 @@ function PrintSpecPanel({
           <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-700/40 bg-slate-800/30 px-4 py-3">
             <div>
               <p className="text-xs font-semibold text-slate-200">Running Headers &amp; Page Numbers</p>
-              <p className="mt-0.5 text-[10px] text-slate-500">Book title on left pages · Chapter title on right pages · Page numbers centered at bottom</p>
+              <p className="mt-0.5 text-[10px] text-slate-500">Book title on left pages · Chapter title on right pages · Page numbers at bottom</p>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={runningHeaders}
-              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders })}
+              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament })}
               className={[
                 "relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200",
                 runningHeaders ? "bg-cyan-500" : "bg-slate-600",
@@ -1018,6 +1033,89 @@ function PrintSpecPanel({
                 className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-[left] duration-200"
               />
             </button>
+          </div>
+
+          {/* Folio Style (Page Number Position) */}
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Page Number Style (Folio)</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "center" as const, label: "Center", sub: "Traditional" },
+                { value: "outside" as const, label: "Outside", sub: "Penguin/Harper" },
+                { value: "none-on-openers" as const, label: "No Openers", sub: "Chicago" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle: opt.value, frontMatterNumbering, sectionOrnament })}
+                  className={[
+                    "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
+                    folioStyle === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-xs font-semibold ${folioStyle === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
+                  <span className="text-[10px] text-slate-500 leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Front Matter Numbering */}
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Front Matter Numbering</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "arabic" as const, label: "1, 2, 3", sub: "Continuous" },
+                { value: "roman" as const, label: "i, ii, iii", sub: "Academic" },
+                { value: "none" as const, label: "None", sub: "No numbers" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering: opt.value, sectionOrnament })}
+                  className={[
+                    "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
+                    frontMatterNumbering === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-xs font-semibold tabular-nums ${frontMatterNumbering === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
+                  <span className="text-[10px] text-slate-500 leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Section Ornaments */}
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Section Break Ornament</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "rule" as const, label: "───", sub: "Horizontal rule" },
+                { value: "fleuron" as const, label: "❦", sub: "Fleuron (literary)" },
+                { value: "asterism" as const, label: "⁂", sub: "Asterism (fiction)" },
+                { value: "dinkus" as const, label: "* * *", sub: "Dinkus (modern)" },
+                { value: "none" as const, label: "(blank)", sub: "Space only" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament: opt.value })}
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-all min-h-[56px]",
+                    sectionOrnament === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-lg font-semibold ${sectionOrnament === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
+                  <span className="text-[10px] text-slate-500 text-center leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Standards badge */}
@@ -1589,7 +1687,13 @@ export function EbookPipeline({
   const [exportingBook, setExportingBook] = useState(false);
   const [regeneratingBackMatter, setRegeneratingBackMatter] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [printSpec, setPrintSpec] = useState<{ trimSize: "6x9" | "5.5x8.5"; runningHeaders: boolean }>({ trimSize: "6x9", runningHeaders: true });
+  const [printSpec, setPrintSpec] = useState<PrintSpecType>({
+    trimSize: "6x9",
+    runningHeaders: true,
+    folioStyle: "center",
+    frontMatterNumbering: "arabic",
+    sectionOrnament: "rule",
+  });
   const [error, setError] = useState<string | null>(null);
   const [signalFilterState, setSignalFilterState] = useState<SignalFilterState>("idle");
   const [signalFilterDetail, setSignalFilterDetail] = useState<string | null>(null);
@@ -3674,6 +3778,9 @@ export function EbookPipeline({
             <PrintSpecPanel
               trimSize={printSpec.trimSize}
               runningHeaders={printSpec.runningHeaders}
+              folioStyle={printSpec.folioStyle}
+              frontMatterNumbering={printSpec.frontMatterNumbering}
+              sectionOrnament={printSpec.sectionOrnament}
               onChange={setPrintSpec}
             />
 
