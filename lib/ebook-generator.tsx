@@ -668,7 +668,7 @@ function writeDropCapParagraph(
   const narrowX = mL + capW;
   doc.font(fonts.serif).fontSize(bodyFontSize).fillColor("#1a1a1a");
 
-  // Binary search to find how much text fits in capH height at narrowW width
+  // Binary search to find how much text fits beside drop cap (capH height, narrowW width)
   let low = 0;
   let high = restText.length;
   let bestFit = 0;
@@ -678,7 +678,7 @@ function writeDropCapParagraph(
     const testText = restText.substring(0, mid);
     const testHeight = doc.heightOfString(testText, { width: narrowW, lineGap: tpl.bodyLineGap });
     
-    if (testHeight <= capH) {
+    if (testHeight <= capH + lineH * 0.5) { // Allow slight overflow for better fitting
       bestFit = mid;
       low = mid + 1;
     } else {
@@ -691,33 +691,43 @@ function writeDropCapParagraph(
   while (splitPoint > 0 && restText[splitPoint] !== ' ') {
     splitPoint--;
   }
-  if (splitPoint === 0) splitPoint = bestFit; // No word boundary found, use character split
+  if (splitPoint === 0) splitPoint = bestFit;
   
   const narrowText = restText.substring(0, splitPoint).trim();
   const remainderText = restText.substring(splitPoint).trim();
 
-  // Render text beside drop cap
-  if (narrowText) {
-    doc.text(narrowText, narrowX, capY, {
+  // Render narrow text beside drop cap and continue remainder seamlessly
+  if (narrowText && remainderText) {
+    // Start narrow text beside drop cap
+    doc.text(narrowText + " ", narrowX, capY, {
       width: narrowW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
-      continued: false,
+      continued: true,
     });
-  }
-
-  // Ensure minimum vertical position past drop cap
-  if (doc.y < capY + capH) {
-    doc.y = capY + capH;
-  }
-
-  // Render remainder at full width, flowing naturally from current position
-  if (remainderText) {
+    // Continue remainder at full width from current Y position
     doc.text(remainderText, mL, undefined, {
       width: contentW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
     });
+  } else if (narrowText) {
+    doc.text(narrowText, narrowX, capY, {
+      width: narrowW,
+      lineGap: tpl.bodyLineGap,
+      align: tpl.bodyAlign,
+    });
+  } else {
+    doc.text(remainderText, narrowX, capY, {
+      width: narrowW,
+      lineGap: tpl.bodyLineGap,
+      align: tpl.bodyAlign,
+    });
+  }
+
+  // Ensure minimum vertical advancement past drop cap
+  if (doc.y < capY + capH) {
+    doc.y = capY + capH;
   }
 
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
