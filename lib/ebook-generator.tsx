@@ -721,10 +721,6 @@ function writeDropCapParagraph(
 
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
 }
-  }
-
-  doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeDivider(doc: any, tpl: BookTemplateConfig, ornamentStyle?: "rule" | "fleuron" | "asterism" | "dinkus" | "none") {
