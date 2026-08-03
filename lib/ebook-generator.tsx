@@ -1123,20 +1123,25 @@ function writeRunsParagraph(
   const lineH = doc.currentLineHeight(false);
 
   let lastY = doc.y;
+  let pageJustBroke = false;
   for (let li = 0; li < lines.length; li++) {
     const ln = lines[li];
     const isLastLine = li === lines.length - 1;
     const isFirstLine = li === 0;
-    const indent = isFirstLine ? firstLineIndent : 0;
-    const startX = leftX + indent;
-    const avail = lineWidth - indent;
-
+    
     // Page break before this line if it won't fit
     if (doc.y + lineH > doc.page.height - doc.page.margins.bottom) {
       doc.addPage();
       doc.x = doc.page.margins.left;
+      pageJustBroke = true;
     }
     lastY = doc.y;
+
+    // After page break, force no indent for continuation line
+    const indent = pageJustBroke ? 0 : (isFirstLine ? firstLineIndent : 0);
+    pageJustBroke = false;
+    const startX = leftX + indent;
+    const avail = lineWidth - indent;
 
     // Per-space extra width for justify (not on the last line)
     let spExtra = 0;
