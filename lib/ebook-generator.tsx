@@ -706,17 +706,21 @@ function writeDropCapParagraph(
     });
   }
 
-  // Position for remainder: at the bottom of drop cap area
-  doc.y = capY + capH;
+  // Continue remainder from current position, no gap
   doc.x = mL;
 
-  // Render remainder at full width immediately below drop cap
+  // Render remainder at full width
   if (remainderText) {
     doc.text(remainderText, mL, doc.y, {
       width: contentW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
     });
+  }
+
+  // Ensure we're at least past the drop cap height
+  if (doc.y < capY + capH) {
+    doc.y = capY + capH;
   }
 
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
