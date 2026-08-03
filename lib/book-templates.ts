@@ -20,7 +20,7 @@ export const BOOK_TEMPLATE_IDS = [
 export type BookTemplateId = (typeof BOOK_TEMPLATE_IDS)[number];
 
 // ─── Print Trim Sizes ─────────────────────────────────────────────────────────
-export type PrintTrimSize = "6x9" | "5.5x8.5";
+export type PrintTrimSize = "6x9" | "5.5x8.5" | "5x8";
 
 export type TrimSizeSpec = {
   label: string;
@@ -52,6 +52,15 @@ export const TRIM_SIZE_SPECS: Record<PrintTrimSize, TrimSizeSpec> = {
     gutterMargin: 54,   // 0.750 in — inside / binding
     outsideMargin: 45,  // 0.625 in — outside / trim
     bodyFontSizeAdjust: 0, // same font size as 6×9 — smaller page naturally yields more pages
+  },
+  "5x8": {
+    label: "5 × 8 in",
+    description: "Amazon Bestseller — Most cost-effective POD format (CreateSpace/KDP standard)",
+    pageSize: [360, 576],
+    margins: { top: 54, bottom: 54, left: 54, right: 45 },
+    gutterMargin: 54,   // 0.750 in — inside / binding
+    outsideMargin: 45,  // 0.625 in — outside / trim
+    bodyFontSizeAdjust: -0.5, // slightly smaller font for compact format
   },
 };
 

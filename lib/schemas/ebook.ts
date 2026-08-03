@@ -313,7 +313,7 @@ export const BookTemplateEnum = z.enum(["classic-academic", "modern-business", "
 
 export const PrintSpecSchema = z.object({
   /** Physical trim size of the printed book */
-  trimSize: z.enum(["6x9", "5.5x8.5"]).default("6x9"),
+  trimSize: z.enum(["6x9", "5.5x8.5", "5x8"]).default("6x9"),
   /** Whether to render running headers (book title verso / chapter title recto) and page numbers */
   runningHeaders: z.boolean().default(true),
   /** Expand page canvas by 9pt on each side for offset / print-on-demand bleed area */
@@ -326,6 +326,29 @@ export const PrintSpecSchema = z.object({
    * Send the standard export (editableProof: false) to the printing press.
    */
   editableProof: z.boolean().default(false),
+  /**
+   * Folio (page number) positioning style:
+   * - "center": centered footer on all pages (default)
+   * - "outside": verso left, recto right (Penguin/HarperCollins standard)
+   * - "none-on-openers": no page numbers on chapter opener pages (Chicago Manual style)
+   */
+  folioStyle: z.enum(["center", "outside", "none-on-openers"]).default("center"),
+  /**
+   * Front matter numbering style:
+   * - "arabic": 1, 2, 3 (continuous with body)
+   * - "roman": i, ii, iii, iv (traditional academic style, body starts at 1)
+   * - "none": no page numbers in front matter
+   */
+  frontMatterNumbering: z.enum(["arabic", "roman", "none"]).default("arabic"),
+  /**
+   * Section break ornament style:
+   * - "rule": horizontal line (default)
+   * - "fleuron": ❦ typographic flower ornament (traditional academic/literary)
+   * - "asterism": ⁂ three asterisks (fiction/memoir standard)
+   * - "dinkus": * * * three spaced asterisks (minimalist modern)
+   * - "none": blank space only
+   */
+  sectionOrnament: z.enum(["rule", "fleuron", "asterism", "dinkus", "none"]).default("rule"),
 });
 
 export const EbookManifestSchema = z.object({

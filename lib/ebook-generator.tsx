@@ -95,19 +95,23 @@ function stampPageHeader(
   doc: any,
   bookTitle: string,
   chapterTitle: string,
-  bodyPageNumber: number,
+  pageNumber: number | string, // supports both numbers and roman numerals
   isChapterOpener: boolean,
+  isFrontMatter: boolean,
   fonts: PdfFontSet,
   layout: { gutterMargin: number; outsideMargin: number; textW: number; pageW: number; footerY: number },
+  folioStyle: "center" | "outside" | "none-on-openers",
 ) {
   const { gutterMargin, outsideMargin, textW, pageW, footerY } = layout;
 
-  // Recto (odd): gutter LEFT, outside RIGHT — verso (even): outside LEFT, gutter RIGHT
-  const isVerso = bodyPageNumber % 2 === 0;
+  // Determine if this is a verso (even) or recto (odd) page based on the page number
+  const numericPageNum = typeof pageNumber === "string" ? 0 : pageNumber; // roman numerals always use physical position
+  const isVerso = numericPageNum % 2 === 0;
   const mL = isVerso ? outsideMargin : gutterMargin;
   const mR = isVerso ? gutterMargin  : outsideMargin;
 
-  if (!isChapterOpener) {
+  // Running header (skip on chapter openers and front matter)
+  if (!isChapterOpener && !isFrontMatter) {
     // Verso (even / left page): book title flush left
     // Recto (odd / right page): chapter title flush right  — CMOS / Zondervan standard
     const headText = isVerso ? bookTitle : (chapterTitle || bookTitle);
@@ -134,15 +138,32 @@ function stampPageHeader(
       .stroke();
   }
 
-  // Footer page number — disable bottom-margin check so PDFKit writes here
+  // Footer page number (folio) — skip on chapter openers if folioStyle is "none-on-openers"
+  if (folioStyle === "none-on-openers" && isChapterOpener) {
+    return; // no page number on chapter opener pages
+  }
+
+  // Disable bottom-margin check so PDFKit writes here
   // instead of auto-adding a new page (footerY is intentionally below page.maxY())
   const savedBottom = doc.page.margins.bottom;
   doc.page.margins.bottom = 0;
+  
+  // Determine folio alignment based on style
+  let folioAlign: "left" | "center" | "right" = "center";
+  let folioX = mL;
+  let folioWidth = textW;
+  
+  if (folioStyle === "outside") {
+    // Verso (even): left-aligned at outside margin
+    // Recto (odd): right-aligned at outside margin
+    folioAlign = isVerso ? "left" : "right";
+  }
+  
   doc
     .fontSize(8)
     .font(fonts.serif)
     .fillColor("#555555")
-    .text(String(bodyPageNumber), mL, footerY, { width: textW, align: "center", lineBreak: false });
+    .text(String(pageNumber), folioX, footerY, { width: folioWidth, align: folioAlign, lineBreak: false });
   doc.page.margins.bottom = savedBottom;
 }
 
@@ -157,6 +178,7 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
   const resolvedPrintSpec = printSpec ?? manifest.printSpec ?? { trimSize: "6x9" as const, runningHeaders: true };
   const trimSpec = TRIM_SIZE_SPECS[resolvedPrintSpec.trimSize ?? "6x9"];
   const showRunningHeaders = resolvedPrintSpec.runningHeaders !== false && tpl.runningHeaders;
+  const sectionOrnament = resolvedPrintSpec.sectionOrnament ?? "rule";
 
   // editableProof: author-review PDF — PDF 1.7, no PDF/X-1a, no bleed/crop marks,
   // fully text-based so Acrobat's Edit PDF tool can make corrections.
@@ -304,10 +326,17 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     };
 
     // ── First pass: track page metadata only — no drawing in this handler ─────
-    interface PageMeta { type: "front" | "toc" | "blank" | "opener" | "body"; chapterTitle: string; bodyPageNum: number }
+    interface PageMeta { 
+      type: "front" | "toc" | "blank" | "opener" | "body"; 
+      chapterTitle: string; 
+      bodyPageNum: number; 
+      frontPageNum: number; // for roman numeral tracking
+      isFrontMatter: boolean;
+    }
     const pageMetas: PageMeta[] = [];
     let totalPageCounter = 0; // every page including front matter
     let bodyPageCounter = 0;
+    let frontMatterPageCounter = 0; // separate counter for roman numerals
     let currentChapterTitle = "";
     let nextIsOpener = false;
     let nextIsBlank  = false; // blank verso page inserted to force next section to recto
@@ -319,23 +348,25 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
       totalPageCounter++;
 
       if (nextIsBlank) {
-        pageMetas.push({ type: "blank", chapterTitle: "", bodyPageNum: 0 });
+        pageMetas.push({ type: "blank", chapterTitle: "", bodyPageNum: 0, frontPageNum: 0, isFrontMatter: false });
         nextIsBlank = false;
       } else if (nextIsToc) {
         tocMetaIndex = pageMetas.length;
-        pageMetas.push({ type: "toc", chapterTitle: "", bodyPageNum: 0 });
+        frontMatterPageCounter++;
+        pageMetas.push({ type: "toc", chapterTitle: "", bodyPageNum: 0, frontPageNum: frontMatterPageCounter, isFrontMatter: true });
         nextIsToc = false;
       } else if (nextIsOpener) {
         bodyPageCounter++;
         const entry = { chapterTitle: currentChapterTitle, bodyPageNum: bodyPageCounter };
-        pageMetas.push({ type: "opener", ...entry });
+        pageMetas.push({ type: "opener", ...entry, frontPageNum: 0, isFrontMatter: false });
         chapterTocEntries.push(entry);
         nextIsOpener = false;
       } else if (bodyPageCounter > 0) {
         bodyPageCounter++;
-        pageMetas.push({ type: "body", chapterTitle: currentChapterTitle, bodyPageNum: bodyPageCounter });
+        pageMetas.push({ type: "body", chapterTitle: currentChapterTitle, bodyPageNum: bodyPageCounter, frontPageNum: 0, isFrontMatter: false });
       } else {
-        pageMetas.push({ type: "front", chapterTitle: "", bodyPageNum: 0 });
+        frontMatterPageCounter++;
+        pageMetas.push({ type: "front", chapterTitle: "", bodyPageNum: 0, frontPageNum: frontMatterPageCounter, isFrontMatter: true });
       }
 
       // Alternate gutter/outside margins across ALL pages (including front matter)
@@ -396,48 +427,48 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Preface (recto-forced) — skip if empty ────────────────────────────────
     if (manifest.frontMatter.preface && manifest.frontMatter.preface.trim().length > 0) {
       forceNextRecto();
-      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, adjustedBodyFontSize);
+      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Introduction (recto-forced) ───────────────────────────────────────────
     forceNextRecto();
-    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, adjustedBodyFontSize);
+    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
 
     // ── Chapter body pages (each recto-forced) ────────────────────────────────
     for (const chapter of manifest.chapters) {
       forceNextRecto();
       currentChapterTitle = chapter.title;
       nextIsOpener = true;
-      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, tpl, adjustedBodyFontSize);
+      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Back matter (each section recto-forced) ───────────────────────────────
     forceNextRecto();
     currentChapterTitle = "Conclusion";
-    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, adjustedBodyFontSize);
+    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
 
     if (manifest.frontMatter.aboutAuthor) {
       forceNextRecto();
       currentChapterTitle = "About the Author";
-      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, adjustedBodyFontSize);
+      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if ((manifest.frontMatter.resourcesList ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Resources";
-      writeResources(doc, manifest.frontMatter, fonts, tpl, adjustedBodyFontSize);
+      writeResources(doc, manifest.frontMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if (manifest.backMatter && (manifest.backMatter.glossary ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Glossary";
-      writeGlossary(doc, manifest.backMatter, fonts, tpl, adjustedBodyFontSize);
+      writeGlossary(doc, manifest.backMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if (manifest.backMatter && (manifest.backMatter.readingGroupGuide ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Reading Group Guide";
-      writeReadingGroupGuide(doc, manifest.backMatter, fonts, tpl, adjustedBodyFontSize);
+      writeReadingGroupGuide(doc, manifest.backMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Second pass ───────────────────────────────────────────────────────────
@@ -449,20 +480,45 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
       stampTOC(doc, start + tocMetaIndex, manifest, chapterTocEntries, fonts, tpl, _layout, tocIsVerso);
     }
 
-    // 2. Running headers + page-number footers on all body pages
+    // 2. Running headers + page-number footers on all pages (respect folioStyle and frontMatterNumbering)
     if (showRunningHeaders) {
+      const folioStyle = resolvedPrintSpec.folioStyle ?? "center";
+      const frontMatterNumbering = resolvedPrintSpec.frontMatterNumbering ?? "arabic";
+      
       for (let i = 0; i < count; i++) {
         const meta = pageMetas[i];
-        if (!meta || meta.type === "front" || meta.type === "blank" || meta.type === "toc") continue;
+        if (!meta || meta.type === "blank") continue;
+        
+        // Determine page number based on front matter numbering style
+        let pageNumber: number | string = 0;
+        if (meta.isFrontMatter) {
+          if (frontMatterNumbering === "roman") {
+            pageNumber = toRomanLower(meta.frontPageNum);
+          } else if (frontMatterNumbering === "arabic") {
+            pageNumber = meta.frontPageNum;
+          } else {
+            // "none" — skip numbering for front matter
+            if (meta.type === "toc") {
+              // Still render TOC content but no page number
+              continue;
+            }
+            continue;
+          }
+        } else {
+          pageNumber = meta.bodyPageNum;
+        }
+        
         doc.switchToPage(start + i);
         stampPageHeader(
           doc,
           manifest.bookTitle,
           meta.chapterTitle,
-          meta.bodyPageNum,
+          pageNumber,
           meta.type === "opener",
+          meta.isFrontMatter,
           fonts,
           _layout,
+          folioStyle,
         );
       }
     }
@@ -632,13 +688,72 @@ function writeDropCapParagraph(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeDivider(doc: any, tpl: BookTemplateConfig) {
-  if (!tpl.showDivider) { doc.moveDown(0.5); return; }
+function writeDivider(doc: any, tpl: BookTemplateConfig, ornamentStyle?: "rule" | "fleuron" | "asterism" | "dinkus" | "none") {
+  const style = ornamentStyle ?? "rule";
+  
+  if (!tpl.showDivider && style === "rule") { 
+    doc.moveDown(0.5); 
+    return; 
+  }
+  
   doc.moveDown(0.5);
-  doc
-    .moveTo(doc.page.margins.left, doc.y)
-    .lineTo(doc.page.width - doc.page.margins.right, doc.y)
-    .strokeColor(tpl.dividerColor).lineWidth(0.5).stroke();
+  
+  switch (style) {
+    case "fleuron":
+      // ❦ (U+2766) — Traditional academic/literary floral ornament
+      doc
+        .fontSize(14)
+        .font("Helvetica")
+        .fillColor(tpl.dividerColor)
+        .text("❦", doc.page.margins.left, undefined, { 
+          width: doc.page.width - doc.page.margins.left - doc.page.margins.right, 
+          align: "center", 
+          lineBreak: false 
+        });
+      break;
+      
+    case "asterism":
+      // ⁂ (U+2042) — Fiction/memoir standard three-asterisk marker
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .fillColor(tpl.dividerColor)
+        .text("⁂", doc.page.margins.left, undefined, { 
+          width: doc.page.width - doc.page.margins.left - doc.page.margins.right, 
+          align: "center", 
+          lineBreak: false 
+        });
+      break;
+      
+    case "dinkus":
+      // * * * — Minimalist modern three-asterisk spacing
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .fillColor(tpl.dividerColor)
+        .text("*   *   *", doc.page.margins.left, undefined, { 
+          width: doc.page.width - doc.page.margins.left - doc.page.margins.right, 
+          align: "center", 
+          lineBreak: false,
+          characterSpacing: 3
+        });
+      break;
+      
+    case "rule":
+      // Traditional horizontal rule
+      doc
+        .moveTo(doc.page.margins.left, doc.y)
+        .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+        .strokeColor(tpl.dividerColor)
+        .lineWidth(0.5)
+        .stroke();
+      break;
+      
+    case "none":
+      // Blank space only (no visual divider)
+      break;
+  }
+  
   doc.moveDown(0.5);
 }
 
@@ -1275,25 +1390,25 @@ function stampTOC(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writePreface(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writePreface(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Preface", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   writeRichBody(doc, fm.preface, quotes, fonts, tpl, { noIndentFirstParagraph: true }, bodyFontSize);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeIntroduction(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeIntroduction(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Introduction", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   writeRichBody(doc, fm.introduction, quotes, fonts, tpl, { noIndentFirstParagraph: true }, bodyFontSize);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   // INDUSTRY UPGRADE: Enhanced chapter opener with more vertical breathing room
@@ -1311,7 +1426,7 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
   
   // More refined divider with increased spacing
   doc.moveDown(0.4);
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   doc.moveDown(0.4);
 
 
@@ -1409,42 +1524,42 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeConclusion(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeConclusion(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Conclusion", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   writeRichBody(doc, fm.conclusion, quotes, fonts, tpl, { noIndentFirstParagraph: true }, bodyFontSize);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeAboutAuthor(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeAboutAuthor(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("About the Author", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   if (fm.aboutAuthor) {
     writeRichBody(doc, fm.aboutAuthor, quotes, fonts, tpl, { noIndentFirstParagraph: true }, bodyFontSize);
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeResources(doc: any, fm: FrontBackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeResources(doc: any, fm: FrontBackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Resources", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   for (const r of (fm.resourcesList ?? [])) {
     doc.fontSize(bodyFontSize ?? tpl.bodyFontSize).font(fonts.serif).fillColor("#1a1a1a").text(`• ${r}`, { width: textW, lineGap: 3.5 });
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeGlossary(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeGlossary(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Glossary", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   const fs = bodyFontSize ?? tpl.bodyFontSize;
   for (const entry of (bm.glossary ?? [])) {
     doc.fontSize(fs).font(fonts.serifBold).fillColor("#1a1a1a").text(entry.term, { width: textW, lineGap: 2 });
@@ -1454,11 +1569,11 @@ function writeGlossary(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTem
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeReadingGroupGuide(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, bodyFontSize?: number) {
+function writeReadingGroupGuide(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Reading Group Guide", { width: textW, align: tpl.matterTitleAlign });
-  writeDivider(doc, tpl);
+  writeDivider(doc, tpl, ornamentStyle);
   const fs = bodyFontSize ?? tpl.bodyFontSize;
   for (const chapter of (bm.readingGroupGuide ?? [])) {
     doc.fontSize(fs + 1).font(fonts.serifBold).fillColor(tpl.chapterTitleColor)
