@@ -678,7 +678,7 @@ function writeDropCapParagraph(
     const testText = restText.substring(0, mid);
     const testHeight = doc.heightOfString(testText, { width: narrowW, lineGap: tpl.bodyLineGap });
     
-    if (testHeight <= capH + lineH * 0.5) { // Allow slight overflow for better fitting
+    if (testHeight <= capH - lineH * 0.2) { // Conservative fit to ensure text doesn't overflow
       bestFit = mid;
       low = mid + 1;
     } else {
@@ -696,38 +696,31 @@ function writeDropCapParagraph(
   const narrowText = restText.substring(0, splitPoint).trim();
   const remainderText = restText.substring(splitPoint).trim();
 
-  // Render narrow text beside drop cap and continue remainder seamlessly
-  if (narrowText && remainderText) {
-    // Start narrow text beside drop cap
-    doc.text(narrowText + " ", narrowX, capY, {
-      width: narrowW,
-      lineGap: tpl.bodyLineGap,
-      align: tpl.bodyAlign,
-      continued: true,
-    });
-    // Continue remainder at full width from current Y position
-    doc.text(remainderText, mL, undefined, {
-      width: contentW,
-      lineGap: tpl.bodyLineGap,
-      align: tpl.bodyAlign,
-    });
-  } else if (narrowText) {
+  // Render narrow text beside drop cap
+  if (narrowText) {
     doc.text(narrowText, narrowX, capY, {
       width: narrowW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
+      continued: false,
     });
-  } else {
-    doc.text(remainderText, narrowX, capY, {
-      width: narrowW,
+  }
+
+  // Position for remainder: at the bottom of drop cap area
+  doc.y = capY + capH;
+  doc.x = mL;
+
+  // Render remainder at full width immediately below drop cap
+  if (remainderText) {
+    doc.text(remainderText, mL, doc.y, {
+      width: contentW,
       lineGap: tpl.bodyLineGap,
       align: tpl.bodyAlign,
     });
   }
 
-  // Ensure minimum vertical advancement past drop cap
-  if (doc.y < capY + capH) {
-    doc.y = capY + capH;
+  doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
+}
   }
 
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
