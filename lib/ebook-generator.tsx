@@ -379,13 +379,14 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Helper: insert blank verso so the NEXT addPage() lands on recto ────────
     const forceNextRecto = () => {
       // totalPageCounter is odd → we're on a recto → next natural page = verso → insert blank
-      if (totalPageCounter % 2 !== 0) { nextIsBlank = true; doc.addPage(); }
+      if (totalPageCounter % 2 !== 0) { nextIsBlank = true; doc.addPage(); doc.x = doc.page.margins.left; }
     };
 
     // ── Title page (page 1, recto) ────────────────────────────────────────────
     // INDUSTRY UPGRADE 1: Half-title page (traditional publishing standard)
     // Half-title shows only the book title in a simple, elegant format
     doc.addPage();
+    doc.x = doc.page.margins.left;
     const titleTextW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     doc
       .moveDown(tpl.titlePageTopGap + 2)
@@ -394,10 +395,12 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
 
     // ── Half-title verso (page 2, blank or book series info) ─────────────────
     doc.addPage();
+    doc.x = doc.page.margins.left;
     // Intentionally blank or could show series info / "Also by Author"
 
     // ── Full title page (page 3, recto) ───────────────────────────────────────
     doc.addPage();
+    doc.x = doc.page.margins.left;
     doc
       .moveDown(tpl.titlePageTopGap)
       .fontSize(tpl.titlePageTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor)
@@ -417,12 +420,14 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
 
     // ── Copyright page (page 4, verso — back of title page) ──────────────────
     doc.addPage();
+    doc.x = doc.page.margins.left;
     writeCopyrightPage(doc, manifest, fonts, tpl);
 
     // ── Table of Contents placeholder (page 5, recto) ─────────────────────────
     // Content is filled in the second pass once all page numbers are known.
     nextIsToc = true;
     doc.addPage();
+    doc.x = doc.page.margins.left;
 
     // ── Preface (recto-forced) — skip if empty ────────────────────────────────
     if (manifest.frontMatter.preface && manifest.frontMatter.preface.trim().length > 0) {
@@ -723,6 +728,9 @@ function writeDropCapParagraph(
     doc.y = capY + capH;
   }
 
+  // Reset x position to left margin for next paragraph
+  doc.x = mL;
+
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
 }
 
@@ -887,6 +895,7 @@ function writeScriptureBlock(doc: any, quote: { text: string; reference?: string
   const remaining = doc.page.height - doc.page.margins.bottom - doc.y;
   if (remaining < estimatedH && estimatedH <= pageContentH * 0.85) {
     doc.addPage();
+    doc.x = doc.page.margins.left;
   }
 
   doc.moveDown(0.75);
@@ -1123,6 +1132,7 @@ function writeRunsParagraph(
     // Page break before this line if it won't fit
     if (doc.y + lineH > doc.page.height - doc.page.margins.bottom) {
       doc.addPage();
+      doc.x = doc.page.margins.left;
     }
     lastY = doc.y;
 
@@ -1165,6 +1175,9 @@ function writeRichBody(doc: any, text: string, quotes: Quote[], fonts: PdfFontSe
   // paragraph can be set flush-left with no indent (standard book typography convention).
   let justRenderedBlock = false;
   paragraphs.forEach((paragraph) => {
+    // Reset X position at the start of each paragraph to prevent carryover
+    doc.x = doc.page.margins.left;
+    
     // Detect AI-generated markdown blockquotes (> prefix) first
     const markdownQuote = parseMarkdownBlockquote(paragraph);
     if (markdownQuote) {
@@ -1209,11 +1222,13 @@ function writeRichBody(doc: any, text: string, quotes: Quote[], fonts: PdfFontSe
         const linesFit = Math.floor(remaining / lineH);
         if (linesFit < 2 && estimatedLines > 2) {
           doc.addPage();
+          doc.x = doc.page.margins.left;
         }
         // Widow guard: if paragraph is 2–3 lines total and only 1 line fits,
         // push the whole paragraph to a new page so it's never split 1+rest.
         if (estimatedLines <= 3 && linesFit < estimatedLines) {
           doc.addPage();
+          doc.x = doc.page.margins.left;
         }
       }
     }
@@ -1431,6 +1446,7 @@ function stampTOC(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writePreface(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Preface", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1440,6 +1456,7 @@ function writePreface(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: Pdf
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeIntroduction(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Introduction", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1449,6 +1466,7 @@ function writeIntroduction(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   // INDUSTRY UPGRADE: Enhanced chapter opener with more vertical breathing room
   doc.moveDown(tpl.chapterPreGap + 1.5);
@@ -1502,7 +1520,10 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
   for (const section of chapter.sections) {
     // Orphan prevention: if fewer than 5 body-line heights remain on this page, start a new one
     const _lineH = (bodyFontSize ?? tpl.bodyFontSize) + tpl.bodyLineGap;
-    if (doc.page.height - doc.page.margins.bottom - doc.y < _lineH * 5) doc.addPage();
+    if (doc.page.height - doc.page.margins.bottom - doc.y < _lineH * 5) {
+      doc.addPage();
+      doc.x = doc.page.margins.left;
+    }
     
     // NO SECTION HEADINGS - skip section.heading rendering entirely
 
@@ -1536,7 +1557,10 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
   if ((chapter.keyTakeaways ?? []).length > 0) {
     // Orphan prevention: keep heading with at least 3 bullet lines
     const _ktLineH = (bodyFontSize ?? tpl.bodyFontSize) + tpl.bodyLineGap;
-    if (doc.page.height - doc.page.margins.bottom - doc.y < _ktLineH * 4) doc.addPage();
+    if (doc.page.height - doc.page.margins.bottom - doc.y < _ktLineH * 4) {
+      doc.addPage();
+      doc.x = doc.page.margins.left;
+    }
     writeDivider(doc, tpl);
     const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     doc.fontSize(tpl.sectionSize - 1).font(fonts[tpl.sectionFont]).fillColor(tpl.labelColor).text("KEY TAKEAWAYS", { width: textW });
@@ -1550,7 +1574,10 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
   if ((chapter.reflectionQuestions ?? []).length > 0) {
     // Orphan prevention: keep heading with at least 3 question lines
     const _rqLineH = (bodyFontSize ?? tpl.bodyFontSize) + tpl.bodyLineGap;
-    if (doc.page.height - doc.page.margins.bottom - doc.y < _rqLineH * 4) doc.addPage();
+    if (doc.page.height - doc.page.margins.bottom - doc.y < _rqLineH * 4) {
+      doc.addPage();
+      doc.x = doc.page.margins.left;
+    }
     writeDivider(doc, tpl);
     const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     doc.fontSize(tpl.sectionSize - 1).font(fonts[tpl.sectionFont]).fillColor(tpl.labelColor).text("REFLECTION QUESTIONS", { width: textW });
@@ -1565,6 +1592,7 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeConclusion(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Conclusion", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1574,6 +1602,7 @@ function writeConclusion(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeAboutAuthor(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("About the Author", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1585,6 +1614,7 @@ function writeAboutAuthor(doc: any, fm: FrontBackMatter, quotes: Quote[], fonts:
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeResources(doc: any, fm: FrontBackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Resources", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1596,6 +1626,7 @@ function writeResources(doc: any, fm: FrontBackMatter, fonts: PdfFontSet, tpl: B
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeGlossary(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Glossary", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
@@ -1610,6 +1641,7 @@ function writeGlossary(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTem
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function writeReadingGroupGuide(doc: any, bm: BackMatter, fonts: PdfFontSet, tpl: BookTemplateConfig, ornamentStyle: "rule" | "fleuron" | "asterism" | "dinkus" | "none", bodyFontSize?: number) {
   doc.addPage();
+  doc.x = doc.page.margins.left;
   const textW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   doc.fontSize(tpl.matterTitleSize).font(fonts.serifBold).fillColor(tpl.chapterTitleColor).text("Reading Group Guide", { width: textW, align: tpl.matterTitleAlign });
   writeDivider(doc, tpl, ornamentStyle);
