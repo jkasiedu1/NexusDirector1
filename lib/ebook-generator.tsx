@@ -663,27 +663,66 @@ function writeDropCapParagraph(
   doc.fillColor(tpl.chapterTitleColor)
     .text(capChar, mL, capY, { lineBreak: false });
 
-  // Render text beside the cap for the first `capLines` lines
+  // Calculate narrow column dimensions
   const narrowW = contentW - capW;
   const narrowX = mL + capW;
   doc.font(fonts.serif).fontSize(bodyFontSize).fillColor("#1a1a1a");
 
-  // Use PDFKit's built-in wrapping in the narrow column; then continue below
-  // the cap for any overflow lines using the full content width.
-  doc.text(restText, narrowX, capY, {
-    width:  narrowW,
-    height: capH + 2, // allow slight overflow for rounding
-    lineGap: tpl.bodyLineGap,
-    align:  tpl.bodyAlign,
-    continued: false,
-  });
+  // Binary search to find how much text fits in capH height at narrowW width
+  let low = 0;
+  let high = restText.length;
+  let bestFit = 0;
+  
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const testText = restText.substring(0, mid);
+    const testHeight = doc.heightOfString(testText, { width: narrowW, lineGap: tpl.bodyLineGap });
+    
+    if (testHeight <= capH) {
+      bestFit = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  
+  // Find word boundary near bestFit
+  let splitPoint = bestFit;
+  while (splitPoint > 0 && restText[splitPoint] !== ' ') {
+    splitPoint--;
+  }
+  if (splitPoint === 0) splitPoint = bestFit; // No word boundary found, use character split
+  
+  const narrowText = restText.substring(0, splitPoint).trim();
+  const remainderText = restText.substring(splitPoint).trim();
 
-  // Advance past the drop cap area if the text was shorter than capLines
+  // Render text beside drop cap
+  if (narrowText) {
+    doc.text(narrowText, narrowX, capY, {
+      width: narrowW,
+      lineGap: tpl.bodyLineGap,
+      align: tpl.bodyAlign,
+      continued: false,
+    });
+  }
+
+  // Position below drop cap
   const afterNarrowY = doc.y;
   if (afterNarrowY < capY + capH) {
     doc.y = capY + capH;
   }
   doc.x = mL;
+
+  // Render remainder at full width
+  if (remainderText) {
+    doc.text(remainderText, mL, doc.y, {
+      width: contentW,
+      lineGap: tpl.bodyLineGap,
+      align: tpl.bodyAlign,
+      continued: false,
+    });
+  }
+
   doc.moveDown(tpl.paragraphGap > 0 ? tpl.paragraphGap / lineH : 0.6);
 }
 
