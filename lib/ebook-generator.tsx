@@ -1140,7 +1140,8 @@ function writeRunsParagraph(
     // After page break, force no indent for continuation line
     const indent = pageJustBroke ? 0 : (isFirstLine ? firstLineIndent : 0);
     pageJustBroke = false;
-    const startX = leftX + indent;
+    const currentLeftX = doc.page.margins.left;
+    const startX = currentLeftX + indent;
     const avail = lineWidth - indent;
 
     // Per-space extra width for justify (not on the last line)
@@ -1162,13 +1163,13 @@ function writeRunsParagraph(
 
     if (!isLastLine) {
       doc.y = lastY + lineH + lineGap;
-      doc.x = leftX;
+      doc.x = doc.page.margins.left;
     }
   }
 
   // Advance past the paragraph
   doc.y = lastY + lineH + paragraphGap;
-  doc.x = leftX;
+  doc.x = doc.page.margins.left;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
