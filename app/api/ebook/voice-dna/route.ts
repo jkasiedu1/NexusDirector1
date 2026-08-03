@@ -77,6 +77,27 @@ function tryParseJsonObject(raw: string): unknown {
   return JSON.parse(repaired);
 }
 
+function toneFromText(raw: string): string {
+  const text = stripMarkdownFences(raw);
+  const lineMatch = text.match(/(?:"toneProfile"|toneProfile|tone)\s*[:=-]\s*"?([^"\n\r,}]{4,120})"?/i);
+  if (lineMatch?.[1]) return lineMatch[1].trim();
+
+  const adjectiveMatch = text.match(/\b(pastoral|warm|direct|authoritative|scholarly|measured|conversational|prophetic|instructional)\b(?:\s*,\s*\b[a-z-]+\b){0,4}/i);
+  if (adjectiveMatch?.[0]) return adjectiveMatch[0].trim();
+
+  return "direct, clear, pastoral";
+}
+
+function ensureToneProfile(dna: unknown) {
+  const parsed = VoiceDNASchema.parse(dna);
+  if (parsed.toneProfile.trim()) return parsed;
+
+  return {
+    ...parsed,
+    toneProfile: "direct, clear, pastoral",
+  };
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json() as unknown;
   let input;
@@ -86,13 +107,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Invalid input" }, { status: 400 });
   }
 
-  // A7: Distributed 1800-word sample (600 × start/middle/end)
+  // Lighter distributed sample to keep route reliably under gateway time limits.
   const words = input.masterTranscript.split(/\s+/);
   const total = words.length;
-  const startSample = words.slice(0, 600).join(" ");
-  const midStart = Math.max(600, Math.floor(total / 2) - 300);
-  const midSample = words.slice(midStart, midStart + 600).join(" ");
-  const endSample = words.slice(Math.max(0, total - 600)).join(" ");
+  const startSample = words.slice(0, 300).join(" ");
+  const midStart = Math.max(300, Math.floor(total / 2) - 150);
+  const midSample = words.slice(midStart, midStart + 300).join(" ");
+  const endSample = words.slice(Math.max(0, total - 300)).join(" ");
   const sampleTranscript = [
     "[START]\n" + startSample,
     "[MIDDLE]\n" + midSample,
@@ -177,24 +198,32 @@ closingPattern
         schema: VoiceDNASchema,
         mode: "json",
         temperature: 0.2,
-        maxTokens: 5120,
+        maxTokens: 1400,
         system: systemPrompt,
         prompt: userPrompt,
       });
 
-      return NextResponse.json(object, { status: 200 });
+      const normalized = ensureToneProfile(object);
+      return NextResponse.json(normalized, { status: 200 });
     } catch {
       // DeepSeek occasionally returns near-JSON text in json mode; strict re-ask + local validation recovers safely.
       const { text } = await generateText({
         model: deepSeekModel,
         temperature: 0.2,
-        maxTokens: 5120,
+        maxTokens: 1800,
         system: `${systemPrompt}\n\nReturn ONLY a valid JSON object. No markdown fences. No commentary.`,
         prompt: userPrompt,
       });
 
-      const parsed = VoiceDNASchema.parse(tryParseJsonObject(text));
-      return NextResponse.json(parsed, { status: 200 });
+      try {
+        const parsed = VoiceDNASchema.parse(tryParseJsonObject(text));
+        const normalized = ensureToneProfile(parsed);
+        return NextResponse.json(normalized, { status: 200 });
+      } catch {
+        // Deterministic last-chance fallback (no additional model call) to prevent timeout cascades.
+        const fallback = ensureToneProfile({ toneProfile: toneFromText(text) });
+        return NextResponse.json(fallback, { status: 200 });
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Voice DNA extraction failed";
