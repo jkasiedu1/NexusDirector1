@@ -659,6 +659,7 @@ function writeDropCapParagraph(
   const mL       = doc.page.margins.left;
   const contentW = doc.page.width - mL - doc.page.margins.right;
   const capY     = doc.y;
+  const capPage  = doc.page;
 
   // Measure cap width at the resolved size
   doc.font(fonts.serifBold).fontSize(capFontSize);
@@ -723,8 +724,10 @@ function writeDropCapParagraph(
     });
   }
 
-  // Ensure we're at least past the drop cap height
-  if (doc.y < capY + capH) {
+  // Ensure we're at least past the drop cap height on the SAME page only.
+  // If the paragraph flowed to a new page, applying capY from the old page
+  // would create a large artificial vertical gap.
+  if (doc.page === capPage && doc.y < capY + capH) {
     doc.y = capY + capH;
   }
 
