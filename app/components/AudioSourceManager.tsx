@@ -156,29 +156,35 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
 
             <div className="rounded-xl border border-amber-500/20 bg-amber-950/30 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-300 mb-2">
-                Regenerate and restructure chapters
+                Regenerate from current transcript
               </p>
               <p className="text-[10px] text-slate-300 mb-2">
                 {activeSource.assignedSectionCount > 0 ? (
                   <>
-                    This will restructure <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> and may add or remove sections based on the transcript content.
+                    Restructure <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> and adjust section count based on content.
+                  </>
+                ) : activeSource.currentTranscript ? (
+                  <>
+                    Create new chapters from this transcript (no existing sections found).
                   </>
                 ) : (
                   <>
-                    Upload a transcript first, then run the pipeline to create sections that can be regenerated.
+                    Edit the transcript above to enable regeneration.
                   </>
                 )}
               </p>
               <button
                 type="button"
-                disabled={!activeSource.currentTranscript || activeSource.assignedSectionCount === 0}
+                disabled={!activeSource.currentTranscript}
                 onClick={() => void handleRegenerateExisting()}
                 className="min-h-[36px] w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {activeSource.assignedSectionCount > 0 ? (
-                  `Regenerate & Restructure (${activeSource.assignedSectionCount})`
+                {activeSource.currentTranscript ? (
+                  activeSource.assignedSectionCount > 0 ? 
+                    `Regenerate & Restructure (${activeSource.assignedSectionCount})` :
+                    "Generate Chapters"
                 ) : (
-                  "No Sections Yet"
+                  "No Transcript"
                 )}
               </button>
             </div>
