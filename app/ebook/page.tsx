@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { EbookPipeline } from "@/app/components/EbookPipeline";
 import { EbookProjectsPanel } from "@/app/components/EbookProjectsPanel";
 import { AssistantPanel } from "@/app/components/AssistantPanel";
+import { ManuscriptEditor } from "@/app/components/ManuscriptEditor";
 import { NexusNav } from "@/app/components/NexusNav";
 import { StatusBar } from "@/app/components/StatusBar";
 import { SiteConfigSchema } from "@/lib/schemas/site-config";
@@ -46,7 +47,7 @@ function hasResumableProgress(job: EbookJobState | null): boolean {
   );
 }
 
-type Tab = "pipeline" | "projects";
+type Tab = "pipeline" | "projects" | "manuscript";
 
 export default function EbookPage() {
   return (
@@ -185,8 +186,8 @@ function EbookPageClient() {
   const requestedTab = searchParams.get("tab");
   const requestedLoad = searchParams.get("load");
   useEffect(() => {
-    if (requestedTab === "projects" || requestedTab === "pipeline") {
-      setActiveTab(requestedTab);
+    if (requestedTab === "projects" || requestedTab === "pipeline" || requestedTab === "manuscript") {
+      setActiveTab(requestedTab as Tab);
       return;
     }
     setActiveTab("pipeline");
@@ -877,7 +878,7 @@ function EbookPageClient() {
                 </div>
               </div>
 
-              <div className="flex gap-1 pb-0">
+              <div className="flex gap-1 pb-0 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setActiveTab("pipeline")}
@@ -898,6 +899,18 @@ function EbookPageClient() {
                     <path d="M3 4v6h6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   Continue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("manuscript")}
+                  disabled={!ebookManifest}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${activeTab === "manuscript" ? "border-cyan-400 text-cyan-300" : ebookManifest ? "border-transparent text-slate-400 hover:text-slate-200" : "border-transparent text-slate-600 cursor-not-allowed"}`}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Edit Manuscript
                 </button>
                 <button
                   type="button"
@@ -941,6 +954,25 @@ function EbookPageClient() {
                   }}
                   onSaveProject={(name) => void handleSaveProject(name)}
                 />
+              </div>
+            </div>
+
+            <div className={activeTab === "manuscript" ? "flex min-h-0 flex-1 overflow-hidden" : "hidden"}>
+              <div className="h-full w-full overflow-y-auto overscroll-contain px-4 pt-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] lg:px-8 lg:pt-6 lg:pb-6" style={{ WebkitOverflowScrolling: "touch" }}>
+                {ebookManifest ? (
+                  <ManuscriptEditor
+                    manifest={ebookManifest}
+                    onChange={(updated) => {
+                      setEbookManifest(updated);
+                      handleEbookUpdate(updated);
+                      setStatusMsg({ type: "success", text: "Manuscript updated. Save project to persist changes." });
+                    }}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                    Complete the pipeline first to edit the manuscript.
+                  </div>
+                )}
               </div>
             </div>
 
