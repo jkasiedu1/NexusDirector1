@@ -10,6 +10,8 @@ import type { PrintSpec } from "@/lib/schemas/ebook";
 import { getTemplate } from "@/lib/book-templates";
 import { TRIM_SIZE_SPECS } from "@/lib/book-templates";
 import type { BookTemplateConfig } from "@/lib/book-templates";
+import { parseMarkdownBlockquote, formatScriptureReference } from "@/lib/scripture-formatter";
+import type { ScriptureQuote } from "@/lib/scripture-formatter";
 import { existsSync } from "node:fs";
 import {
   Document as DocxDocument,
@@ -875,7 +877,7 @@ function parseMarkdownBlockquote(paragraph: string): { text: string; reference?:
   };
 }
 
-function writeScriptureBlock(doc: any, quote: { text: string; reference?: string; translation?: string }, fonts: PdfFontSet, tpl: BookTemplateConfig) {
+function writeScriptureBlock(doc: any, quote: ScriptureQuote, fonts: PdfFontSet, tpl: BookTemplateConfig) {
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const textX = doc.page.margins.left + tpl.scriptureIndent;
   const textWidth = contentWidth - tpl.scriptureIndent * 2;
@@ -921,9 +923,7 @@ function writeScriptureBlock(doc: any, quote: { text: string; reference?: string
   doc.removeListener("pageAdded", _restoreIndent);
 
   // Reference line: em-dash · reference · optional translation — right-aligned, accent colour
-  const reference = quote.reference
-    ? `\u2014 ${quote.reference}${quote.translation ? ` (${quote.translation})` : ""}`
-    : "";
+  const reference = formatScriptureReference(quote.reference, quote.translation);
   if (reference) {
     doc
       .moveDown(0.25)
@@ -1536,7 +1536,19 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
       doc.x = doc.page.margins.left;
     }
     
-    // NO SECTION HEADINGS - skip section.heading rendering entirely
+    if (_firstSectionDone && section.heading?.trim()) {
+      doc.moveDown(_firstSectionDone ? 0.8 : 0.4);
+      doc
+        .fontSize(tpl.sectionSize)
+        .font(fonts[tpl.sectionFont])
+        .fillColor(tpl.sectionColor)
+        .text(stripMarkdownForPdf(applySmartTypography(section.heading.trim())), {
+          width: textW,
+          align: tpl.sectionAlign,
+          lineGap: 2,
+        });
+      doc.moveDown(0.25);
+    }
 
     // ── Amendment 4: Drop cap on the very first body paragraph of the chapter ──
     if (!_firstSectionDone && section.body) {
@@ -1737,21 +1749,17 @@ function quoteParagraphsToHtml(text: string, quotes: Quote[], options?: { italic
     if (markdownQuote) {
       const verseLines = markdownQuote.text.split(/\n/).filter((l) => l.trim());
       const verseHtml = verseLines.map((l) => `<span class="verse-line">${escapeHtml(l.trim())}</span>`).join("\n");
-      const refText = markdownQuote.reference
-        ? `&mdash; ${escapeHtml(markdownQuote.reference)}${markdownQuote.translation ? ` <span class="scripture-translation">(${escapeHtml(markdownQuote.translation)})</span>` : ""}`
-        : "";
+      const refText = formatScriptureReference(markdownQuote.reference, markdownQuote.translation).replace(/\u2014/, "&mdash;");
       renderedIndex++;
-      return `<blockquote class="scripture-block"><div class="scripture-verse">${verseHtml}</div>${refText ? `<div class="scripture-ref">${refText}</div>` : ""}</blockquote>`;
+      return `<blockquote class="scripture-block"><div class="scripture-verse">${verseHtml}</div>${refText ? `<div class="scripture-ref">${escapeHtml(refText)}</div>` : ""}</blockquote>`;
     }
     const matchingQuote = findMatchingBlockQuote(paragraph, quotes);
     if (matchingQuote) {
       const verseLines = matchingQuote.text.split(/\n/).filter((l) => l.trim());
       const verseHtml = verseLines.map((l) => `<span class="verse-line">${escapeHtml(l.trim())}</span>`).join("\n");
-      const refText = matchingQuote.reference
-        ? `&mdash; ${escapeHtml(matchingQuote.reference)}${matchingQuote.translation ? ` <span class="scripture-translation">(${escapeHtml(matchingQuote.translation)})</span>` : ""}`
-        : "";
+      const refText = formatScriptureReference(matchingQuote.reference, matchingQuote.translation).replace(/\u2014/, "&mdash;");
       renderedIndex++;
-      return `<blockquote class="scripture-block"><div class="scripture-verse">${verseHtml}</div>${refText ? `<div class="scripture-ref">${refText}</div>` : ""}</blockquote>`;
+      return `<blockquote class="scripture-block"><div class="scripture-verse">${verseHtml}</div>${refText ? `<div class="scripture-ref">${escapeHtml(refText)}</div>` : ""}</blockquote>`;
     }
 
     // Drop markdown heading lines — they duplicate the section heading already
@@ -2080,7 +2088,7 @@ export async function generateDocxBuffer(manifest: EbookManifest, templateId?: s
   const accentRgb = tpl.accentColor.replace("#", "");
   const scriptureIndentTwips = Math.round(tpl.scriptureIndent * 20);
 
-  function docxScriptureBlock(quote: { text: string; reference?: string; translation?: string }): Paragraph[] {
+  function docxScriptureBlock(quote: ScriptureQuote): Paragraph[] {
     // Clean the text: strip all markdown blockquote markers and artifacts
     const cleanedText = quote.text
       .split("\n")
@@ -2100,8 +2108,8 @@ export async function generateDocxBuffer(manifest: EbookManifest, templateId?: s
       })
     );
     const refParagraphs: Paragraph[] = [];
-    if (quote.reference) {
-      const refText = `\u2014 ${quote.reference}${quote.translation ? ` (${quote.translation})` : ""}`;
+    const refText = formatScriptureReference(quote.reference, quote.translation);
+    if (refText) {
       refParagraphs.push(
         new Paragraph({
           children: [new TextRun({ text: refText, bold: true, size: scriptureRefHalfPt, color: accentRgb })],

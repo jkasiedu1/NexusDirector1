@@ -389,7 +389,7 @@ ARGUMENT FLOW:
 • After scripture quotes, ADVANCE the argument—never restate what the verse just said.
 
 ═══ SCRIPTURE FORMATTING (Chicago Manual + Premium Print) ═══
-SHORT INLINE (under 40 words, woven into sentence): *"verse text"* (Book Chapter:Verse, Translation)
+SHORT INLINE (under 40 words, woven into sentence): *"verse text"* (Book Chapter:Verse Translation)
 SHORT STANDALONE (under 40 words, quoted as own statement):
 > Verse text here.
 > — Book Chapter:Verse (Translation)
@@ -408,6 +408,7 @@ CRITICAL RULES:
 • Never add biblical background (historical setting, authorial intent, cultural context) unless the speaker explicitly stated it.
 • Every scripture must complete TEXT → TRUTH → APPLICATION within 2-3 paragraphs of the quotation.
 • Always include translation abbreviation: (NIV), (KJV), (ESV), etc.
+• Reference line format is ALWAYS: — Book Chapter:Verse (Translation) with em-dash, space before book name, translation in parentheses.
 
 ═══ VOICE DNA ENFORCEMENT ═══
 When Voice DNA is provided, you MUST:
