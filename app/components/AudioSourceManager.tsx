@@ -144,7 +144,7 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
                   type="button"
                   disabled={!newTranscriptFile}
                   onClick={() => void handleRegenerate()}
-                  className="min-h-[44px] rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-[44px] whitespace-nowrap rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Regenerate
                 </button>
@@ -159,15 +159,27 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
                 Regenerate and restructure chapters
               </p>
               <p className="text-[10px] text-slate-300 mb-2">
-                This will restructure <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> and may add or remove sections based on the transcript content.
+                {activeSource.assignedSectionCount > 0 ? (
+                  <>
+                    This will restructure <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> and may add or remove sections based on the transcript content.
+                  </>
+                ) : (
+                  <>
+                    Upload a transcript first, then run the pipeline to create sections that can be regenerated.
+                  </>
+                )}
               </p>
               <button
                 type="button"
-                disabled={activeSource.assignedSectionCount === 0}
+                disabled={!activeSource.currentTranscript || activeSource.assignedSectionCount === 0}
                 onClick={() => void handleRegenerateExisting()}
                 className="min-h-[36px] w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Regenerate & Restructure ({activeSource.assignedSectionCount})
+                {activeSource.assignedSectionCount > 0 ? (
+                  `Regenerate & Restructure (${activeSource.assignedSectionCount})`
+                ) : (
+                  "No Sections Yet"
+                )}
               </button>
             </div>
           </div>

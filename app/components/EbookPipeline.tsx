@@ -2324,8 +2324,7 @@ export function EbookPipeline({
       addLog(`Filtering ${label} transcript...`);
       type FilterResult = { cleanedTranscript: string; removedSegments: { reason: string; excerpt: string }[]; summary: string };
       const filterRes = await postJson<FilterResult>("/api/ebook/filter-signal", {
-        rawTranscript: transcript,
-        sourceLabel: label,
+        masterTranscript: transcript,
       });
       const cleanedTranscript = filterRes.cleanedTranscript;
       addLog(`✓ ${label} filtered — ${filterRes.removedSegments.length} segments removed`);
