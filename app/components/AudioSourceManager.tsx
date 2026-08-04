@@ -39,7 +39,7 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
 
   const handleRegenerateExisting = useCallback(async () => {
     if (!activeSource) return;
-    if (!window.confirm(`Regenerate manuscript sections from ${activeSource.label}? This will rewrite ${activeSource.assignedSectionCount} section(s) using the current transcript.`)) return;
+    if (!window.confirm(`Regenerate and restructure chapters using ${activeSource.label}?\n\nThis will rebuild affected chapters with optimal section count. Current: ${activeSource.assignedSectionCount} section(s) - may increase or decrease based on transcript content.`)) return;
     try {
       await onRegenerateSource(activeSource.slot);
     } catch (err) {
@@ -150,16 +150,16 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
                 </button>
               </div>
               <p className="mt-1 text-[10px] text-slate-400">
-                Upload a new transcript file (.txt, .md) to replace this source. Manuscript sections will be regenerated.
+                Upload a new transcript file (.txt, .md) to replace this source. Affected chapters will be restructured with optimal section count.
               </p>
             </div>
 
             <div className="rounded-xl border border-amber-500/20 bg-amber-950/30 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-300 mb-2">
-                Regenerate from current transcript
+                Regenerate and restructure chapters
               </p>
               <p className="text-[10px] text-slate-300 mb-2">
-                This will rewrite <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> that use {activeSource.label} without changing the transcript.
+                This will restructure <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> and may add or remove sections based on the transcript content.
               </p>
               <button
                 type="button"
@@ -167,7 +167,7 @@ export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscr
                 onClick={() => void handleRegenerateExisting()}
                 className="min-h-[36px] w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Regenerate Sections ({activeSource.assignedSectionCount})
+                Regenerate & Restructure ({activeSource.assignedSectionCount})
               </button>
             </div>
           </div>

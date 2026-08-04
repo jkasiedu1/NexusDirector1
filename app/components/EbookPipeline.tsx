@@ -2290,7 +2290,7 @@ export function EbookPipeline({
         next[slot] = "regenerating";
         return next;
       });
-      addLog(`Regenerating ${label}...`);
+      addLog(`Regenerating ${label} with chapter restructuring...`);
 
       // Step 1: Get the transcript (either from new file or existing)
       let transcript: string;
@@ -2330,27 +2330,31 @@ export function EbookPipeline({
       const cleanedTranscript = filterRes.cleanedTranscript;
       addLog(`✓ ${label} filtered — ${filterRes.removedSegments.length} segments removed`);
 
-      // Step 3: Find sections assigned to this source
+      // Step 3: Create content map for this source
       if (!completedManifest || !reviewContext) {
         throw new Error("No completed manuscript found. Run the full pipeline first.");
       }
 
-      const affectedSections: Array<{ chapterNumber: number; sectionNumber: number; heading: string }> = [];
+      addLog(`Analyzing ${label} content structure...`);
+      const sourceContentMap = await postJson<ContentMap>("/api/ebook/content-map", {
+        masterTranscript: cleanedTranscript,
+        voiceDNA: reviewContext.contentMap.voiceDNA ?? {},
+      });
+      addLog(`✓ Content mapped — ${sourceContentMap.segments.length} segments identified`);
+
+      // Step 4: Find affected chapters and determine what needs restructuring
+      const affectedChapterNumbers = new Set<number>();
       for (const assignment of sectionAssignments) {
         const hasThisSource = (assignment.sourceSegmentIds ?? []).some((segId) => {
           return segId.startsWith(sourceId);
         });
         if (hasThisSource) {
-          affectedSections.push({
-            chapterNumber: assignment.chapterNumber,
-            sectionNumber: assignment.sectionNumber,
-            heading: assignment.heading,
-          });
+          affectedChapterNumbers.add(assignment.chapterNumber);
         }
       }
 
-      if (affectedSections.length === 0) {
-        addLog(`⚠ No sections assigned to ${label}. Nothing to regenerate.`);
+      if (affectedChapterNumbers.size === 0) {
+        addLog(`⚠ No chapters use ${label}. Nothing to regenerate.`);
         setAudioSourceStatuses((prev) => {
           const next = [...prev];
           next[slot] = "complete";
@@ -2359,45 +2363,125 @@ export function EbookPipeline({
         return;
       }
 
-      addLog(`Found ${affectedSections.length} section(s) to regenerate`);
+      const affectedChapters = Array.from(affectedChapterNumbers).sort((a, b) => a - b);
+      addLog(`Found ${affectedChapters.length} affected chapter(s): ${affectedChapters.join(", ")}`);
 
-      // Step 4: Rewrite affected sections
-      for (const section of affectedSections) {
-        addLog(`  Rewriting Chapter ${section.chapterNumber}, Section ${section.sectionNumber}: ${section.heading}...`);
-        
-        const assignment = sectionAssignments.find(
-          (a) => a.chapterNumber === section.chapterNumber && a.sectionNumber === section.sectionNumber
+      // Step 5: For each affected chapter, re-architect with new content
+      for (const chapterNum of affectedChapters) {
+        addLog(`  Restructuring Chapter ${chapterNum}...`);
+
+        // Get the original chapter from architecture
+        const originalChapter = completedManifest.chapters.find((c) => c.number === chapterNum);
+        if (!originalChapter) continue;
+
+        // Build a hybrid content map: keep other sources, replace this source's segments
+        const otherSourceSegments = reviewContext.contentMap.segments.filter(
+          (seg) => !seg.sourceAudio.startsWith(sourceId.replace("audio-", "audio-"))
         );
-        if (!assignment) continue;
+        const thisSourceSegments = sourceContentMap.segments.map((seg) => ({
+          ...seg,
+          sourceAudio: sourceId as "audio-1" | "audio-2" | "audio-3" | "audio-4" | "audio-5" | "audio-6",
+        }));
 
-        // Update the transcript excerpt with the new cleaned transcript
-        const updatedAssignment = {
-          ...assignment,
-          transcriptExcerpts: [cleanedTranscript],
+        const hybridContentMap: ContentMap = {
+          ...reviewContext.contentMap,
+          segments: [...otherSourceSegments, ...thisSourceSegments],
+          allQuotes: [
+            ...reviewContext.contentMap.allQuotes.filter((q) => {
+              const quoteInOtherSegments = otherSourceSegments.some((seg) =>
+                seg.quotes.some((sq) => sq.id === q.id)
+              );
+              return quoteInOtherSegments;
+            }),
+            ...sourceContentMap.allQuotes,
+          ],
         };
 
-        const sectionRes = await postJson<{ body: string; quotes: Array<{ id: string; text: string; reference: string; translation: string; type: "scripture" | "quote" | "proverb"; isBlockQuote: boolean }> }>(
-          "/api/ebook/write-section",
-          updatedAssignment
-        );
+        // Re-architect just this chapter
+        addLog(`  Planning new section structure for Chapter ${chapterNum}...`);
+        const chapterArchitecture = await postJson<BookArchitecture>("/api/ebook/architect", {
+          contentMap: hybridContentMap,
+          voiceDNA: reviewContext.contentMap.voiceDNA ?? {},
+          oneChapterPerUpload: false,
+        });
 
-        // Update the manifest
+        // Find the new structure for this chapter
+        const newChapterBlueprint = chapterArchitecture.chapters.find((c) => c.number === chapterNum);
+        if (!newChapterBlueprint) {
+          addLog(`  ⚠ Chapter ${chapterNum} not found in new architecture, skipping...`);
+          continue;
+        }
+
+        addLog(`  ✓ Chapter ${chapterNum} restructured: ${newChapterBlueprint.sections.length} sections (was ${originalChapter.sections.length})`);
+
+        // Step 6: Create section assignments for the new structure
+        const newSectionAssignments: SectionAssignment[] = [];
+        for (const section of newChapterBlueprint.sections) {
+          const assignment: SectionAssignment = {
+            chapterNumber: chapterNum,
+            chapterTitle: newChapterBlueprint.title,
+            sectionNumber: section.sectionNumber,
+            heading: section.heading,
+            transcriptExcerpts: section.sourceSegmentIds.map((segId) => {
+              const segment = hybridContentMap.segments.find((s) => s.id === segId);
+              return segment?.rawText ?? "";
+            }),
+            quotes: section.quotesInSection,
+            keyPoints: section.keyPoints,
+            voiceDNA: reviewContext.contentMap.voiceDNA ?? ({} as VoiceDNA),
+            previousSectionEnding: "",
+            nextSectionHeading: newChapterBlueprint.sections[section.sectionNumber]?.heading,
+            targetWordCount: section.targetWordCount,
+            alreadyCoveredPoints: [],
+            alreadyQuotedRefs: [],
+            isLastSectionInChapter: section.sectionNumber === newChapterBlueprint.sections.length,
+            nextChapterTitle: completedManifest.chapters[chapterNum]?.title,
+            sourceSegmentIds: section.sourceSegmentIds,
+            consumedSegmentIds: [],
+            conceptOwnershipMap: {},
+            forbiddenVerseTexts: [],
+            allowedInlineOnly: [],
+          };
+          newSectionAssignments.push(assignment);
+        }
+
+        // Step 7: Write all sections in the new chapter structure
+        const newSections: Array<{ sectionNumber: number; heading: string; body: string; quotes: Array<{ id: string; text: string; reference: string; translation: string; type: "scripture" | "quote" | "proverb"; isBlockQuote: boolean }>; wordCount: number }> = [];
+
+        for (const assignment of newSectionAssignments) {
+          addLog(`    Writing Section ${assignment.sectionNumber}: ${assignment.heading}...`);
+          
+          const sectionRes = await postJson<{ body: string; quotes: Array<{ id: string; text: string; reference: string; translation: string; type: "scripture" | "quote" | "proverb"; isBlockQuote: boolean }> }>(
+            "/api/ebook/write-section",
+            assignment
+          );
+
+          newSections.push({
+            sectionNumber: assignment.sectionNumber,
+            heading: assignment.heading,
+            body: sectionRes.body,
+            quotes: sectionRes.quotes,
+            wordCount: countWords(sectionRes.body),
+          });
+
+          addLog(`    ✓ Section ${assignment.sectionNumber} — ${countWords(sectionRes.body).toLocaleString()} words`);
+        }
+
+        // Step 8: Update the manifest with the restructured chapter
         updateCompletedManifest((current) => ({
           ...current,
           chapters: current.chapters.map((chapter) => {
-            if (chapter.number !== section.chapterNumber) return chapter;
+            if (chapter.number !== chapterNum) return chapter;
             return {
               ...chapter,
-              sections: chapter.sections.map((s) => (
-                s.sectionNumber === section.sectionNumber
-                  ? { ...s, body: sectionRes.body, wordCount: countWords(sectionRes.body), quotes: sectionRes.quotes }
-                  : s
-              )),
+              title: newChapterBlueprint.title,
+              sections: newSections,
+              totalWordCount: newSections.reduce((sum, s) => sum + s.wordCount, 0),
             };
           }),
         }));
 
-        addLog(`  ✓ Section ${section.sectionNumber} updated — ${countWords(sectionRes.body).toLocaleString()} words`);
+        addLog(`  ✓ Chapter ${chapterNum} regenerated with ${newSections.length} sections`);
       }
 
       setAudioSourceStatuses((prev) => {
@@ -2405,7 +2489,7 @@ export function EbookPipeline({
         next[slot] = "complete";
         return next;
       });
-      addLog(`✓ ${label} regeneration complete — ${affectedSections.length} section(s) updated`);
+      addLog(`✓ ${label} regeneration complete — ${affectedChapters.length} chapter(s) restructured`);
     } catch (err) {
       setAudioSourceStatuses((prev) => {
         const next = [...prev];

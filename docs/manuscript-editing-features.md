@@ -9,7 +9,7 @@ This document outlines the three major features that give you complete control o
 **Capabilities:**
 - View all 6 audio source slots with their transcription status
 - Upload new transcript files (.txt, .md) to replace existing transcripts
-- Regenerate manuscript sections assigned to specific audio sources
+- **Regenerate and restructure chapters** - automatically adjusts section count based on transcript content
 - Manually edit transcript text for any source
 - Remove audio sources from the pipeline
 - Real-time word count tracking
@@ -21,15 +21,17 @@ This document outlines the three major features that give you complete control o
 2. Go to the review section and click "Audio Sources" tab
 3. Select any audio slot to manage it
 4. **Upload new transcript:** Upload a .txt or .md file and click "Regenerate"
-5. **Regenerate from current:** Click "Regenerate Sections" to rewrite sections using existing transcript
+5. **Regenerate & restructure:** Click "Regenerate & Restructure" to rebuild chapters with optimal section count
 6. **Edit manually:** Directly edit the transcript text in the editor
 7. **Remove:** Delete a source from the pipeline entirely
 8. Changes take effect immediately after regeneration completes
 
 **How It Works:**
 - Each slot tracks its transcript, status, and assigned section count
-- Regenerate filters the transcript and finds affected sections
-- Only sections with `sourceSegmentIds` matching that source are rewritten
+- Regenerate creates a new content map from the filtered transcript
+- Finds affected chapters and re-architects them with hybrid content (keeps other sources, replaces this source)
+- **Automatically determines optimal section count** - may add sections if transcript has more content, or remove sections if less
+- Only chapters using that source are restructured - other chapters remain unchanged
 - The manuscript is updated in real-time without full pipeline rerun
 - Manual transcript edits persist until regeneration is triggered
 
@@ -129,14 +131,19 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 4. Click the slot to open management controls
 5. See section count badge showing how many sections use this source
 6. **Option A:** Upload new transcript file (.txt, .md) → click "Regenerate"
-7. **Option B:** Click "Regenerate Sections" to rewrite using current transcript
+7. **Option B:** Click "Regenerate & Restructure" to rebuild chapters using current transcript
 8. **Option C:** Edit transcript text manually in the editor
 9. Pipeline automatically:
    - Filters the transcript
-   - Finds affected sections (matching sourceSegmentIds)
-   - Rewrites only those sections
+   - Creates a content map from the new transcript
+   - Finds affected chapters
+   - Re-architects each chapter with hybrid content map
+   - **Determines optimal section count** (may add or remove sections)
+   - Writes all sections in the new structure
    - Updates the manifest in real-time
 10. Review updated manuscript in Edit Manuscript tab
+
+**Example:** Chapter 5 had 3 sections using Slot-2. After uploading a more detailed transcript, regeneration restructures Chapter 5 to have 6 sections with better content distribution.
 
 ## Key Benefits
 
@@ -158,10 +165,15 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 ### Regeneration Process
 1. **Read transcript:** From uploaded file or existing state
 2. **Filter:** Calls `/api/ebook/filter-signal` to clean transcript
-3. **Find sections:** Searches `sectionAssignments` for matching `sourceSegmentIds`
-4. **Rewrite:** Calls `/api/ebook/write-section` for each affected section
-5. **Update manifest:** Patches `completedManifest` with new section bodies
-6. **Status tracking:** Updates from "regenerating" to "complete" or "error"
+3. **Content map:** Analyzes new transcript structure via `/api/ebook/content-map`
+4. **Find affected chapters:** Searches for chapters using this source
+5. **Re-architect:** For each chapter, calls `/api/ebook/architect` with hybrid content map
+6. **Determine sections:** Architect decides optimal section count based on content
+7. **Write sections:** Calls `/api/ebook/write-section` for each section in new structure
+8. **Update manifest:** Replaces chapter structure with new sections
+9. **Status tracking:** Updates from "regenerating" to "complete" or "error"
+
+**Key Innovation:** The architect phase runs per-chapter with a hybrid content map that keeps segments from other sources but replaces segments from the regenerating source. This allows the chapter to be restructured with the right number of sections for the new content.
 
 ### Status States
 - **idle:** No content assigned to this slot
