@@ -8,27 +8,30 @@ This document outlines the three major features that give you complete control o
 
 **Capabilities:**
 - View all 6 audio source slots with their transcription status
-- Retranscribe individual audio sources without affecting others
+- Upload new transcript files (.txt, .md) to replace existing transcripts
+- Regenerate manuscript sections assigned to specific audio sources
 - Manually edit transcript text for any source
 - Remove audio sources from the pipeline
 - Real-time word count tracking
-- Status indicators (idle, transcribing, complete, error)
+- Status indicators (idle, transcribing, regenerating, complete, error)
+- Section assignment counter shows how many sections use each source
 
 **Usage:**
 1. Complete the initial pipeline to generate your manuscript
 2. Go to the review section and click "Audio Sources" tab
 3. Select any audio slot to manage it
-4. **Retranscribe:** Upload a new audio file to replace the transcript
-5. **Edit manually:** Directly edit the transcript text in the editor
-6. **Remove:** Delete a source from the pipeline entirely
-7. Changes require manuscript regeneration (see warning message)
+4. **Upload new transcript:** Upload a .txt or .md file and click "Regenerate"
+5. **Regenerate from current:** Click "Regenerate Sections" to rewrite sections using existing transcript
+6. **Edit manually:** Directly edit the transcript text in the editor
+7. **Remove:** Delete a source from the pipeline entirely
+8. Changes take effect immediately after regeneration completes
 
 **How It Works:**
-- Each slot maintains its own audio file, transcript, and status
-- Retranscribe calls Deepgram API directly from browser
-- Transcript edits update in real-time
-- Status tracking shows transcribing progress
-- Removed sources are excluded from regeneration
+- Each slot tracks its transcript, status, and assigned section count
+- Regenerate filters the transcript and finds affected sections
+- Only sections with `sourceSegmentIds` matching that source are rewritten
+- The manuscript is updated in real-time without full pipeline rerun
+- Manual transcript edits persist until regeneration is triggered
 
 ## 2. Manual Section/Chapter Insertion
 
@@ -119,16 +122,20 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 5. Click "Save" to persist changes to your project
 6. Export to PDF/EPUB to see your edits
 
-### Retranscribe Workflow
+### Regenerate Workflow
 1. Complete initial pipeline to generate manuscript
 2. Go to Pipeline → Review → **Audio Sources** tab
-3. Identify problematic audio source (check status indicators)
+3. Identify audio source that needs updating
 4. Click the slot to open management controls
-5. **Option A:** Upload new audio file → click "Retranscribe"
-6. **Option B:** Edit transcript text manually in the editor
-7. Pipeline automatically updates transcripts
-8. Warning appears: "Manuscript will need regeneration"
-9. Return to pipeline start and re-run to apply changes
+5. See section count badge showing how many sections use this source
+6. **Option A:** Upload new transcript file (.txt, .md) → click "Regenerate"
+7. **Option B:** Click "Regenerate Sections" to rewrite using current transcript
+8. **Option C:** Edit transcript text manually in the editor
+9. Pipeline automatically:
+   - Filters the transcript
+   - Finds affected sections (matching sourceSegmentIds)
+   - Rewrites only those sections
+   - Updates the manifest in real-time
 10. Review updated manuscript in Edit Manuscript tab
 
 ## Key Benefits

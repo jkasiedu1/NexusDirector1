@@ -9,32 +9,43 @@ type AudioSource = {
   audioFile: File | null;
   transcriptFile: File | null;
   currentTranscript: string;
-  status: "idle" | "transcribing" | "complete" | "error";
+  status: "idle" | "transcribing" | "complete" | "error" | "regenerating";
   wordCount: number;
+  assignedSectionCount: number; // how many manuscript sections use this source
 };
 
 type Props = {
   audioSources: AudioSource[];
-  onRetranscribe: (slot: number, audioFile: File) => Promise<void>;
+  onRegenerateSource: (slot: number, transcriptFile?: File) => Promise<void>;
   onTranscriptEdit: (slot: number, newTranscript: string) => void;
   onRemoveSource: (slot: number) => void;
 };
 
-export function AudioSourceManager({ audioSources, onRetranscribe, onTranscriptEdit, onRemoveSource }: Props) {
+export function AudioSourceManager({ audioSources, onRegenerateSource, onTranscriptEdit, onRemoveSource }: Props) {
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [retranscribeFile, setRetranscribeFile] = useState<File | null>(null);
+  const [newTranscriptFile, setNewTranscriptFile] = useState<File | null>(null);
 
   const activeSource = audioSources.find((s) => s.slot === activeSlot);
 
-  const handleRetranscribe = useCallback(async () => {
-    if (!activeSource || !retranscribeFile) return;
+  const handleRegenerate = useCallback(async () => {
+    if (!activeSource) return;
     try {
-      await onRetranscribe(activeSource.slot, retranscribeFile);
-      setRetranscribeFile(null);
+      await onRegenerateSource(activeSource.slot, newTranscriptFile ?? undefined);
+      setNewTranscriptFile(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Retranscribe failed");
+      alert(err instanceof Error ? err.message : "Regenerate failed");
     }
-  }, [activeSource, retranscribeFile, onRetranscribe]);
+  }, [activeSource, newTranscriptFile, onRegenerateSource]);
+
+  const handleRegenerateExisting = useCallback(async () => {
+    if (!activeSource) return;
+    if (!window.confirm(`Regenerate manuscript sections from ${activeSource.label}? This will rewrite ${activeSource.assignedSectionCount} section(s) using the current transcript.`)) return;
+    try {
+      await onRegenerateSource(activeSource.slot);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Regenerate failed");
+    }
+  }, [activeSource, onRegenerateSource]);
 
   return (
     <div className="space-y-4">
@@ -73,7 +84,12 @@ export function AudioSourceManager({ audioSources, onRetranscribe, onTranscriptE
                   )}
                   {source.status === "transcribing" && (
                     <span className="rounded-md bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-300">
-                      Working...
+                      Transcribing...
+                    </span>
+                  )}
+                  {source.status === "regenerating" && (
+                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">
+                      Regenerating...
                     </span>
                   )}
                   {source.status === "error" && (
@@ -112,29 +128,48 @@ export function AudioSourceManager({ audioSources, onRetranscribe, onTranscriptE
             </button>
           </div>
 
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
-              Retranscribe with new audio
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="file"
-                accept="audio/*,video/*"
-                onChange={(e) => setRetranscribeFile(e.target.files?.[0] ?? null)}
-                className="flex-1 rounded-xl border border-slate-700/60 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/40"
-              />
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Upload new transcript
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  accept=".txt,.md,.doc,.docx"
+                  onChange={(e) => setNewTranscriptFile(e.target.files?.[0] ?? null)}
+                  className="flex-1 rounded-xl border border-slate-700/60 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/40"
+                />
+                <button
+                  type="button"
+                  disabled={!newTranscriptFile}
+                  onClick={() => void handleRegenerate()}
+                  className="min-h-[44px] rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Regenerate
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Upload a new transcript file (.txt, .md) to replace this source. Manuscript sections will be regenerated.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-amber-500/20 bg-amber-950/30 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-300 mb-2">
+                Regenerate from current transcript
+              </p>
+              <p className="text-[10px] text-slate-300 mb-2">
+                This will rewrite <span className="font-bold text-amber-200">{activeSource.assignedSectionCount} section(s)</span> that use {activeSource.label} without changing the transcript.
+              </p>
               <button
                 type="button"
-                disabled={!retranscribeFile}
-                onClick={() => void handleRetranscribe()}
-                className="min-h-[44px] rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={activeSource.assignedSectionCount === 0}
+                onClick={() => void handleRegenerateExisting()}
+                className="min-h-[36px] w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Retranscribe
+                Regenerate Sections ({activeSource.assignedSectionCount})
               </button>
             </div>
-            <p className="mt-1 text-[10px] text-slate-400">
-              Upload a new audio file to replace the transcript for this slot. The manuscript will be regenerated automatically.
-            </p>
           </div>
 
           <div>

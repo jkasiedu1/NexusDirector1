@@ -1706,7 +1706,7 @@ export function EbookPipeline({
   const [reviewTab, setReviewTab] = useState<ReviewTab>("manuscript");
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignment[]>([]);
   const [sourceTranscripts, setSourceTranscripts] = useState<Array<{ label: string; text: string }>>([]);
-  const [audioSourceStatuses, setAudioSourceStatuses] = useState<Array<"idle" | "transcribing" | "complete" | "error">>(["idle", "idle", "idle", "idle", "idle", "idle"]);
+  const [audioSourceStatuses, setAudioSourceStatuses] = useState<Array<"idle" | "transcribing" | "complete" | "error" | "regenerating">>(["idle", "idle", "idle", "idle", "idle", "idle"]);
   const sourceMapImportRef = useRef<HTMLInputElement | null>(null);
   const jobIdRef = useRef<string>(newJobId());
   // Mirror of log in a ref so runPipeline (async) can read the current value for checkpoints
@@ -2280,94 +2280,142 @@ export function EbookPipeline({
 
   // ── Audio Source Management Handlers ──────────────────────────────────────
 
-  const handleRetranscribe = useCallback(async (slot: number, newAudioFile: File) => {
+  const handleRegenerateSource = useCallback(async (slot: number, newTranscriptFile?: File) => {
     const label = `Slot-${slot + 1}`;
+    const sourceId = `audio-${slot + 1}` as `audio-${1 | 2 | 3 | 4 | 5 | 6}`;
+    
     try {
       setAudioSourceStatuses((prev) => {
         const next = [...prev];
-        next[slot] = "transcribing";
+        next[slot] = "regenerating";
         return next;
       });
-      addLog(`Retranscribing ${label}...`);
+      addLog(`Regenerating ${label}...`);
 
-      // Call Deepgram to transcribe the new file
-      const tokenRes = await fetch("/api/transcribe-token");
-      if (!tokenRes.ok) throw new Error(`Could not get Deepgram token (HTTP ${tokenRes.status})`);
-      const { apiKey } = await tokenRes.json() as { apiKey: string };
-
-      const VIDEO_TO_AUDIO: Record<string, string> = {
-        "video/mp4": "audio/mp4",
-        "video/quicktime": "audio/mp4",
-        "video/x-m4v": "audio/mp4",
-        "video/webm": "audio/webm",
-        "video/ogg": "audio/ogg",
-        "video/x-matroska": "audio/webm",
-      };
-      const rawMime = newAudioFile.type || "";
-      const mimeType = VIDEO_TO_AUDIO[rawMime] ?? (rawMime || "audio/mpeg");
-
-      const params = new URLSearchParams({
-        model: "nova-2",
-        smart_format: "true",
-        punctuate: "true",
-        paragraphs: "true",
-        language: "en",
-      });
-
-      const buffer = await newAudioFile.arrayBuffer();
-      const dgRes = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
-        method: "POST",
-        headers: { Authorization: `Token ${apiKey}`, "Content-Type": mimeType },
-        body: buffer,
-      });
-
-      if (!dgRes.ok) {
-        const dgErr = await dgRes.json().catch(() => ({})) as { err_msg?: string };
-        throw new Error(`Transcription failed: ${dgErr.err_msg || dgRes.statusText || `HTTP ${dgRes.status}`}`);
+      // Step 1: Get the transcript (either from new file or existing)
+      let transcript: string;
+      if (newTranscriptFile) {
+        addLog(`Reading new transcript file for ${label}...`);
+        transcript = await readTextFile(newTranscriptFile);
+        addLog(`✓ New transcript loaded — ${countWords(transcript).toLocaleString()} words`);
+        
+        // Update the transcript in state
+        setSourceTranscripts((prev) => {
+          const next = [...prev];
+          const existing = next.find((t) => t.label === label);
+          if (existing) {
+            existing.text = transcript;
+          } else {
+            next.push({ label, text: transcript });
+          }
+          return next;
+        });
+      } else {
+        // Use existing transcript
+        const existing = sourceTranscripts.find((t) => t.label === label);
+        if (!existing || !existing.text) {
+          throw new Error(`No transcript found for ${label}. Upload a transcript file first.`);
+        }
+        transcript = existing.text;
+        addLog(`Using existing transcript — ${countWords(transcript).toLocaleString()} words`);
       }
 
-      type DgResponse = { results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> } };
-      const data = await dgRes.json() as DgResponse;
-      const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript ?? "";
-      if (!transcript.trim()) throw new Error(`Deepgram returned an empty transcript`);
+      // Step 2: Filter the transcript
+      addLog(`Filtering ${label} transcript...`);
+      type FilterResult = { cleanedTranscript: string; removedSegments: { reason: string; excerpt: string }[]; summary: string };
+      const filterRes = await postJson<FilterResult>("/api/ebook/filter-signal", {
+        rawTranscript: transcript,
+        sourceLabel: label,
+      });
+      const cleanedTranscript = filterRes.cleanedTranscript;
+      addLog(`✓ ${label} filtered — ${filterRes.removedSegments.length} segments removed`);
 
-      // Update the transcript in sourceTranscripts
-      setSourceTranscripts((prev) => {
-        const next = [...prev];
-        const existing = next.find((t) => t.label === label);
-        if (existing) {
-          existing.text = transcript;
-        } else {
-          next.push({ label, text: transcript });
+      // Step 3: Find sections assigned to this source
+      if (!completedManifest || !reviewContext) {
+        throw new Error("No completed manuscript found. Run the full pipeline first.");
+      }
+
+      const affectedSections: Array<{ chapterNumber: number; sectionNumber: number; heading: string }> = [];
+      for (const assignment of sectionAssignments) {
+        const hasThisSource = (assignment.sourceSegmentIds ?? []).some((segId) => {
+          return segId.startsWith(sourceId);
+        });
+        if (hasThisSource) {
+          affectedSections.push({
+            chapterNumber: assignment.chapterNumber,
+            sectionNumber: assignment.sectionNumber,
+            heading: assignment.heading,
+          });
         }
-        return next;
-      });
+      }
 
-      // Update audio file reference
-      setAudioFiles((prev) => {
-        const next = [...prev];
-        next[slot] = newAudioFile;
-        return next;
-      });
+      if (affectedSections.length === 0) {
+        addLog(`⚠ No sections assigned to ${label}. Nothing to regenerate.`);
+        setAudioSourceStatuses((prev) => {
+          const next = [...prev];
+          next[slot] = "complete";
+          return next;
+        });
+        return;
+      }
+
+      addLog(`Found ${affectedSections.length} section(s) to regenerate`);
+
+      // Step 4: Rewrite affected sections
+      for (const section of affectedSections) {
+        addLog(`  Rewriting Chapter ${section.chapterNumber}, Section ${section.sectionNumber}: ${section.heading}...`);
+        
+        const assignment = sectionAssignments.find(
+          (a) => a.chapterNumber === section.chapterNumber && a.sectionNumber === section.sectionNumber
+        );
+        if (!assignment) continue;
+
+        // Update the transcript excerpt with the new cleaned transcript
+        const updatedAssignment = {
+          ...assignment,
+          transcriptExcerpts: [cleanedTranscript],
+        };
+
+        const sectionRes = await postJson<{ body: string; quotes: Array<{ id: string; text: string; reference: string; translation: string; type: "scripture" | "quote" | "proverb"; isBlockQuote: boolean }> }>(
+          "/api/ebook/write-section",
+          updatedAssignment
+        );
+
+        // Update the manifest
+        updateCompletedManifest((current) => ({
+          ...current,
+          chapters: current.chapters.map((chapter) => {
+            if (chapter.number !== section.chapterNumber) return chapter;
+            return {
+              ...chapter,
+              sections: chapter.sections.map((s) => (
+                s.sectionNumber === section.sectionNumber
+                  ? { ...s, body: sectionRes.body, wordCount: countWords(sectionRes.body), quotes: sectionRes.quotes }
+                  : s
+              )),
+            };
+          }),
+        }));
+
+        addLog(`  ✓ Section ${section.sectionNumber} updated — ${countWords(sectionRes.body).toLocaleString()} words`);
+      }
 
       setAudioSourceStatuses((prev) => {
         const next = [...prev];
         next[slot] = "complete";
         return next;
       });
-
-      addLog(`✓ ${label} retranscribed — ${countWords(transcript).toLocaleString()} words`);
-      addLog(`⚠ Manuscript will need regeneration to reflect new transcript.`);
+      addLog(`✓ ${label} regeneration complete — ${affectedSections.length} section(s) updated`);
     } catch (err) {
       setAudioSourceStatuses((prev) => {
         const next = [...prev];
         next[slot] = "error";
         return next;
       });
-      addLog(`✗ ${label} retranscribe failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      addLog(`✗ ${label} regeneration failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       throw err;
     }
-  }, [addLog]);
+  }, [addLog, sourceTranscripts, sectionAssignments, completedManifest, reviewContext, updateCompletedManifest]);
 
   const handleTranscriptEdit = useCallback((slot: number, newTranscript: string) => {
     const label = `Slot-${slot + 1}`;
@@ -4201,14 +4249,21 @@ export function EbookPipeline({
                 <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-widest text-amber-300 mb-1">Audio Source Management</p>
                   <p className="text-xs text-slate-300">
-                    Retranscribe individual audio sources or edit transcripts manually. Changes require manuscript regeneration.
+                    Upload new transcripts or regenerate manuscript sections from individual audio sources.
                   </p>
                 </div>
 
                 <AudioSourceManager
                   audioSources={[0, 1, 2, 3, 4, 5].map((i) => {
                     const label = `Slot-${i + 1}`;
+                    const sourceId = `audio-${i + 1}`;
                     const transcript = sourceTranscripts.find((t) => t.label === label);
+                    
+                    // Count sections assigned to this source
+                    const assignedSectionCount = sectionAssignments.filter((assignment) => {
+                      return (assignment.sourceSegmentIds ?? []).some((segId) => segId.startsWith(sourceId));
+                    }).length;
+                    
                     return {
                       slot: i,
                       label,
@@ -4217,9 +4272,10 @@ export function EbookPipeline({
                       currentTranscript: transcript?.text ?? "",
                       status: audioSourceStatuses[i],
                       wordCount: countWords(transcript?.text ?? ""),
+                      assignedSectionCount,
                     };
                   })}
-                  onRetranscribe={handleRetranscribe}
+                  onRegenerateSource={handleRegenerateSource}
                   onTranscriptEdit={handleTranscriptEdit}
                   onRemoveSource={handleRemoveSource}
                 />
