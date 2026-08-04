@@ -148,6 +148,34 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 
 ## Technical Notes
 
+### Audio Source Architecture
+- 6 audio source slots (Slot-1 through Slot-6)
+- Each slot can contain: audio file, transcript file, or both
+- Transcripts stored in `sourceTranscripts` state array
+- Section assignments link sections to source IDs via `sourceSegmentIds`
+- Regeneration is targeted: only rewrites sections assigned to that source
+
+### Regeneration Process
+1. **Read transcript:** From uploaded file or existing state
+2. **Filter:** Calls `/api/ebook/filter-signal` to clean transcript
+3. **Find sections:** Searches `sectionAssignments` for matching `sourceSegmentIds`
+4. **Rewrite:** Calls `/api/ebook/write-section` for each affected section
+5. **Update manifest:** Patches `completedManifest` with new section bodies
+6. **Status tracking:** Updates from "regenerating" to "complete" or "error"
+
+### Status States
+- **idle:** No content assigned to this slot
+- **transcribing:** Deepgram API call in progress (initial pipeline only)
+- **regenerating:** Filtering and rewriting sections in progress
+- **complete:** Transcript ready and sections up to date
+- **error:** Transcription or regeneration failed
+
+### Performance
+- Regeneration avoids full pipeline rerun (saves time and API costs)
+- Only affected sections are rewritten (preserves unrelated content)
+- Manual edits persist until explicit regeneration
+
+### Editing System
 - All edits are stored in the EbookManifest structure
 - Manifest is saved to IndexedDB when you save the project
 - The PDF generator reads directly from the manifest, so all edits appear immediately in exports
