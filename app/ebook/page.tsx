@@ -31,6 +31,21 @@ const VALID_JOB_STATUSES = new Set([
   "frontmatter", "exporting", "complete", "failed",
 ]);
 
+function hasResumableProgress(job: EbookJobState | null): boolean {
+  if (!job) return false;
+  return Boolean(
+    job.masterTranscript ||
+    job.transcripts.length > 0 ||
+    job.voiceDNA ||
+    job.contentMap ||
+    job.architecture ||
+    job.sectionAssignments.length > 0 ||
+    job.sections.length > 0 ||
+    job.chapters.length > 0 ||
+    job.frontMatter
+  );
+}
+
 type Tab = "pipeline" | "projects";
 
 export default function EbookPage() {
@@ -59,6 +74,7 @@ function EbookPageClient() {
   // Project persistence
   const [projects, setProjects] = useState<EbookProject[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string>("");
+  const [hasContinueState, setHasContinueState] = useState(false);
   // Incrementing this key remounts <EbookPipeline> so it re-reads localStorage on load
   const [pipelineKey, setPipelineKey] = useState(0);
   const hydratedLoadRef = useRef<string | null>(null);
@@ -320,6 +336,39 @@ function EbookPageClient() {
     const parsed = EbookJobStateSchema.safeParse(normalized);
     return parsed.success ? parsed.data : null;
   }, []);
+
+  const readResumableJobState = useCallback(async (): Promise<EbookJobState | null> => {
+    try {
+      const raw = localStorage.getItem(JOB_STATE_KEY);
+      if (raw) {
+        const parsed = normalizeJobStateForSave(JSON.parse(raw) as unknown);
+        if (hasResumableProgress(parsed)) return parsed;
+      }
+    } catch {
+      // Fall through to IndexedDB lookup.
+    }
+
+    try {
+      const savedJobId = localStorage.getItem(JOB_STORAGE_KEY);
+      if (!savedJobId) return null;
+      const fromStore = await getEbookJob(savedJobId).catch(() => null);
+      const parsed = normalizeJobStateForSave(fromStore);
+      if (!hasResumableProgress(parsed)) return null;
+      localStorage.setItem(JOB_STATE_KEY, JSON.stringify(parsed));
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, [normalizeJobStateForSave]);
+
+  const refreshContinueState = useCallback(async () => {
+    const resumable = await readResumableJobState();
+    setHasContinueState(Boolean(resumable));
+  }, [readResumableJobState]);
+
+  useEffect(() => {
+    void refreshContinueState();
+  }, [refreshContinueState]);
 
   // ── Project handlers ──────────────────────────────────────────────────────
 
@@ -716,12 +765,34 @@ function EbookPageClient() {
     setCurrentProjectId("");
     setEbookManifest(null);
     setEbookPipelineSnapshot(null);
+    setHasContinueState(false);
     setAssistantOpen(false);
     setActiveTab("pipeline");
     setPipelineKey((k) => k + 1);
     setStatusMsg({ type: "success", text: "Started a fresh book project." });
     router.replace("/ebook?tab=pipeline");
   }, [router]);
+
+  const handleContinuePipeline = useCallback(async () => {
+    const job = await readResumableJobState();
+    if (!job) {
+      setStatusMsg({ type: "error", text: "No resumable pipeline checkpoint found." });
+      setHasContinueState(false);
+      return;
+    }
+
+    localStorage.setItem(JOB_STATE_KEY, JSON.stringify(job));
+    liveJobStateRef.current = job;
+    setCurrentProjectId((prev) => prev || job.jobId);
+
+    const manifest = buildManifestFromJob(job);
+    setEbookManifest(manifest);
+    setActiveTab("pipeline");
+    setPipelineKey((k) => k + 1);
+    setHasContinueState(true);
+    setStatusMsg({ type: "success", text: "Continue loaded. Resume writing from your last checkpoint." });
+    router.replace("/ebook?tab=pipeline");
+  }, [buildManifestFromJob, readResumableJobState, router]);
 
   const handleNavSelect = useCallback((id: string) => {
     if (id === "ebook") {
@@ -819,6 +890,17 @@ function EbookPageClient() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => { void handleContinuePipeline(); }}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${hasContinueState ? "border-transparent text-amber-300 hover:text-amber-200" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
+                    <path d="M3 12a9 9 0 1 0 3-6.7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M3 4v6h6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Continue
+                </button>
+                <button
+                  type="button"
                   onClick={() => setActiveTab("projects")}
                   className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${activeTab === "projects" ? "border-cyan-400 text-cyan-300" : "border-transparent text-slate-400 hover:text-slate-200"}`}
                 >
@@ -855,6 +937,7 @@ function EbookPageClient() {
                   onPipelineSnapshotChange={handlePipelineSnapshotChange}
                   onJobStateChange={(job) => {
                     liveJobStateRef.current = job;
+                    setHasContinueState(hasResumableProgress(job));
                   }}
                   onSaveProject={(name) => void handleSaveProject(name)}
                 />
