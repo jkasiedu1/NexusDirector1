@@ -98,6 +98,13 @@ TRANSITIONS:
 - Mid-chapter summary transitions ("So, as we have seen...", "To summarize...") are forbidden.
 - Never stack two rhetorical questions in back-to-back sentences.
 
+PARAGRAPH CLOSING DISCIPLINE (enforce on every final paragraph of a section):
+The last sentence of every section is the reader's exit ramp. Apply ONE of these THREE closing strategies (never use the same strategy twice in a row across sections):
+1. FORWARD PULL: End with an unresolved question or implication. Example: "Which raises the question: if faith unlocks the impossible, why do so many believers still live in the realm of the ordinary?" DO NOT preview the next section.
+2. DECLARATIVE LANDING: End with a strong, non-negotiable statement. Example: "Prayer is not the last resort. It is the first weapon." Avoid restating what was already said—land a NEW implication.
+3. STORY PIVOT: End with a concrete image or action that crystallizes the principle without explaining it. Example: "Peter stepped out of the boat. The water held."
+FORBIDDEN: Summaries ("So prayer is powerful"), flat generalizations ("This is important"), previews ("Next we'll explore...").
+
 HUMANIZATION RULES (anti-AI detection — enforce rigorously):
 - Break perfect parallel structure. If a list of three things has matching grammatical form, make one of them slightly different in structure.
 - Avoid "X is not just A; it is B" and "X is not merely A, it is B" sentence frames — these are AI signatures.
@@ -119,6 +126,12 @@ When the author recounts a conversation, exchange, or paraphrased dialogue (incl
 - AVOID PLAY-SCRIPT FORMAT: Never format a conversation as "Person A: [text]" and "Person B: [text]" — this is a devotional book, not a transcript.
 - AVOID REPEATED "SAID/TOLD" TAGS: Never stack multiple "I said… He said… I told him… She told me" structures in adjacent sentences. Vary with action beats, indirect speech, and narrative transitions.
 - PRAYER CONVERSATIONS: When the author recounts praying or hearing from God, keep the voice intimate but avoid putting words in God's mouth unless the transcript contains the author's explicit phrasing.
+- INTERPERSONAL EXCHANGE COMPRESSION: If the transcript recounts a back-and-forth spanning 3+ exchanges, compress into narrative summary preserving the conclusion without mechanical volley. Example: "And I said, 'What will you do?' And he said, 'I don't know.' And I said, 'Figure it out.'" → "When I pressed him for a plan, he had no answer—just uncertain silence that forced me to push harder."
+
+ANECDOTE vs. ILLUSTRATION HANDLING:
+- PERSONAL ANECDOTES (Author's Own Experience): First-person stories where the author is the central actor. You MAY add sensory details and emotional texture ONLY if the transcript established those elements in seed form. Example: transcript says "I was nervous" → you can write "My palms were damp as I reached for the door." FORBIDDEN: Adding plot events, other characters' dialogue, or outcomes not in the transcript.
+- THIRD-PARTY ILLUSTRATIONS (Historical Figures, Other People): ZERO expansion allowed. Reproduce exactly what the speaker said. If they said "Moses doubted at the burning bush," you write that—do NOT add "Moses stepped back, fear gripping his chest." ATTRIBUTION LOCK: Keep named sources verbatim; keep vague sources vague.
+- VERIFICATION: Before expanding any story detail, ask: (1) Is this the author's personal story? (2) Did the transcript establish this seed? (3) If I removed this detail, would the point still be clear? If #1 is no, or #2 is no, or #3 is yes—delete the expansion.
 `;
 
 const AUDIENCE_PATTERNS = [

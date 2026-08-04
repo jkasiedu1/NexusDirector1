@@ -936,12 +936,34 @@ ${isAbsoluteFirstSection ? "" : "\nTRANSITIONAL OPENING: Open with \"Having seen
       unfullfilledHook = openingHook;
       console.warn(`[write-section] Unfulfilled hook in Ch${assignment.chapterNumber} §${assignment.sectionNumber}: "${openingHook.slice(0, 80)}"`);
     }
+    
+    // ── Theological drift detector (validates doctrinal keyword substitutions) ──
+    const DOCTRINAL_KEYWORDS = [
+      { term: "by grace", avoid: ["through grace", "with grace"], reason: "Reformed soteriology" },
+      { term: "atonement", avoid: ["satisfaction", "propitiation"], reason: "Atonement theory variance" },
+      { term: "elder", avoid: ["bishop", "overseer"], reason: "Polity structure" },
+    ];
+    const transcriptText = effectiveExcerpts.join(" ").toLowerCase();
+    const outputText = body.toLowerCase();
+    const doctrinalWarnings: string[] = [];
+    for (const { term, avoid, reason } of DOCTRINAL_KEYWORDS) {
+      const speakerUsed = transcriptText.includes(term);
+      const llmSubstituted = avoid.some((alt) => outputText.includes(alt));
+      if (speakerUsed && llmSubstituted) {
+        doctrinalWarnings.push(`Speaker used "${term}" but output substituted variant (${reason})`);
+      }
+    }
+    if (doctrinalWarnings.length > 0) {
+      console.warn(`[write-section] Doctrinal drift in Ch${assignment.chapterNumber} §${assignment.sectionNumber}: ${doctrinalWarnings.join("; ")}`);
+    }
+    
       return {
         body,
         claimLedger: object.claimLedger ?? [],
         passiveVoiceCount: passiveHits.length,
         unfullfilledHook,
         sequenceBreakCount,
+        doctrinalWarnings: doctrinalWarnings.length > 0 ? doctrinalWarnings : undefined,
       };
     } catch (err) {
       const fallbackBody = stripAudienceLanguage(normalizeReaderFacingProse(await fallbackSectionBody(assignment)));
