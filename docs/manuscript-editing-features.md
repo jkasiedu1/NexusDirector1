@@ -1,10 +1,10 @@
 # Ebook Manuscript Editing Features
 
-This document outlines the three major features added to give you complete control over your ebook manuscript.
+This document outlines the three major features that give you complete control over your ebook manuscript.
 
-## 1. Audio Source Manager (Coming in Phase 2)
+## 1. Audio Source Manager ✅ COMPLETED
 
-**Location:** Will be added to EbookPipeline component
+**Location:** Pipeline → Review section → Audio Sources tab
 
 **Capabilities:**
 - View all 6 audio source slots with their transcription status
@@ -12,12 +12,23 @@ This document outlines the three major features added to give you complete contr
 - Manually edit transcript text for any source
 - Remove audio sources from the pipeline
 - Real-time word count tracking
+- Status indicators (idle, transcribing, complete, error)
 
 **Usage:**
-1. Upload audio files to any of the 6 slots
-2. If a transcript needs correction, select the slot
-3. Upload a new audio file to retranscribe OR edit the transcript manually
-4. Changes trigger manuscript regeneration for only affected sections
+1. Complete the initial pipeline to generate your manuscript
+2. Go to the review section and click "Audio Sources" tab
+3. Select any audio slot to manage it
+4. **Retranscribe:** Upload a new audio file to replace the transcript
+5. **Edit manually:** Directly edit the transcript text in the editor
+6. **Remove:** Delete a source from the pipeline entirely
+7. Changes require manuscript regeneration (see warning message)
+
+**How It Works:**
+- Each slot maintains its own audio file, transcript, and status
+- Retranscribe calls Deepgram API directly from browser
+- Transcript edits update in real-time
+- Status tracking shows transcribing progress
+- Removed sources are excluded from regeneration
 
 ## 2. Manual Section/Chapter Insertion
 
@@ -108,14 +119,17 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 5. Click "Save" to persist changes to your project
 6. Export to PDF/EPUB to see your edits
 
-### Retranscribe Workflow (Phase 2)
-1. Identify problematic audio source
-2. Go to "Audio Sources" section in Pipeline
-3. Select the slot to retranscribe
-4. Upload new audio file OR edit transcript manually
-5. Pipeline automatically regenerates affected sections
-6. Review changes in Edit Manuscript tab
-7. Save project
+### Retranscribe Workflow
+1. Complete initial pipeline to generate manuscript
+2. Go to Pipeline → Review → **Audio Sources** tab
+3. Identify problematic audio source (check status indicators)
+4. Click the slot to open management controls
+5. **Option A:** Upload new audio file → click "Retranscribe"
+6. **Option B:** Edit transcript text manually in the editor
+7. Pipeline automatically updates transcripts
+8. Warning appears: "Manuscript will need regeneration"
+9. Return to pipeline start and re-run to apply changes
+10. Review updated manuscript in Edit Manuscript tab
 
 ## Key Benefits
 
@@ -133,11 +147,12 @@ Every field edited in the Manuscript Editor directly maps to the PDF export:
 - Undo/Redo is available at the section level in the Transcript Source Map Panel
 - Chapter/section deletion includes confirmation prompts to prevent accidents
 
-## Future Enhancements
+## Implementation Status
 
-Potential additions based on user feedback:
-- Bulk chapter reordering with drag-and-drop
-- Section templates for common patterns
-- Find/replace across entire manuscript
-- Style preset management (formatting saved with manuscript)
-- Collaborative editing with change tracking
+| Feature | Status | Location |
+|---------|--------|----------|
+| Audio Source Manager | ✅ Complete | Pipeline → Review → Audio Sources tab |
+| Manual Section/Chapter Insertion | ✅ Complete | Edit Manuscript → Chapters |
+| Complete Manuscript Editor | ✅ Complete | Edit Manuscript tab |
+
+All three features are fully implemented and ready to use.

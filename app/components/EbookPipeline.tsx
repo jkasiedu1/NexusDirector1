@@ -5,6 +5,7 @@ import { ProseEditor, ProseToolbarProvider, SharedProseToolbar } from "./ProseEd
 import { EbookProgressRing } from "@/app/components/EbookProgressRing";
 import { VoiceStudio } from "@/app/components/VoiceStudio";
 import { TranscriptSourceMapPanel } from "@/app/components/TranscriptSourceMapPanel";
+import { AudioSourceManager } from "@/app/components/AudioSourceManager";
 import {
   saveEbookJob,
   getEbookJob,
@@ -66,7 +67,7 @@ const STAGE_ORDER: PipelineStage[] = [
 ];
 type SignalFilterState = "idle" | "applied" | "skipped";
 type QualityReport = { score: number; pass: boolean; issues: { severity: "warn" | "error"; message: string }[] };
-type ReviewTab = "manuscript" | "source-map";
+type ReviewTab = "manuscript" | "source-map" | "audio-sources";
 export type EbookPipelineSnapshot = {
   stage: PipelineStage;
   progress: { total: number; completed: number };
@@ -1705,6 +1706,7 @@ export function EbookPipeline({
   const [reviewTab, setReviewTab] = useState<ReviewTab>("manuscript");
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignment[]>([]);
   const [sourceTranscripts, setSourceTranscripts] = useState<Array<{ label: string; text: string }>>([]);
+  const [audioSourceStatuses, setAudioSourceStatuses] = useState<Array<"idle" | "transcribing" | "complete" | "error">>(["idle", "idle", "idle", "idle", "idle", "idle"]);
   const sourceMapImportRef = useRef<HTMLInputElement | null>(null);
   const jobIdRef = useRef<string>(newJobId());
   // Mirror of log in a ref so runPipeline (async) can read the current value for checkpoints
@@ -2276,6 +2278,134 @@ export function EbookPipeline({
   ).length;
   const canStart = activeSlotCount >= 1 && stage === "idle";
 
+  // ── Audio Source Management Handlers ──────────────────────────────────────
+
+  const handleRetranscribe = useCallback(async (slot: number, newAudioFile: File) => {
+    const label = `Slot-${slot + 1}`;
+    try {
+      setAudioSourceStatuses((prev) => {
+        const next = [...prev];
+        next[slot] = "transcribing";
+        return next;
+      });
+      addLog(`Retranscribing ${label}...`);
+
+      // Call Deepgram to transcribe the new file
+      const tokenRes = await fetch("/api/transcribe-token");
+      if (!tokenRes.ok) throw new Error(`Could not get Deepgram token (HTTP ${tokenRes.status})`);
+      const { apiKey } = await tokenRes.json() as { apiKey: string };
+
+      const VIDEO_TO_AUDIO: Record<string, string> = {
+        "video/mp4": "audio/mp4",
+        "video/quicktime": "audio/mp4",
+        "video/x-m4v": "audio/mp4",
+        "video/webm": "audio/webm",
+        "video/ogg": "audio/ogg",
+        "video/x-matroska": "audio/webm",
+      };
+      const rawMime = newAudioFile.type || "";
+      const mimeType = VIDEO_TO_AUDIO[rawMime] ?? (rawMime || "audio/mpeg");
+
+      const params = new URLSearchParams({
+        model: "nova-2",
+        smart_format: "true",
+        punctuate: "true",
+        paragraphs: "true",
+        language: "en",
+      });
+
+      const buffer = await newAudioFile.arrayBuffer();
+      const dgRes = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+        method: "POST",
+        headers: { Authorization: `Token ${apiKey}`, "Content-Type": mimeType },
+        body: buffer,
+      });
+
+      if (!dgRes.ok) {
+        const dgErr = await dgRes.json().catch(() => ({})) as { err_msg?: string };
+        throw new Error(`Transcription failed: ${dgErr.err_msg || dgRes.statusText || `HTTP ${dgRes.status}`}`);
+      }
+
+      type DgResponse = { results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> } };
+      const data = await dgRes.json() as DgResponse;
+      const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript ?? "";
+      if (!transcript.trim()) throw new Error(`Deepgram returned an empty transcript`);
+
+      // Update the transcript in sourceTranscripts
+      setSourceTranscripts((prev) => {
+        const next = [...prev];
+        const existing = next.find((t) => t.label === label);
+        if (existing) {
+          existing.text = transcript;
+        } else {
+          next.push({ label, text: transcript });
+        }
+        return next;
+      });
+
+      // Update audio file reference
+      setAudioFiles((prev) => {
+        const next = [...prev];
+        next[slot] = newAudioFile;
+        return next;
+      });
+
+      setAudioSourceStatuses((prev) => {
+        const next = [...prev];
+        next[slot] = "complete";
+        return next;
+      });
+
+      addLog(`✓ ${label} retranscribed — ${countWords(transcript).toLocaleString()} words`);
+      addLog(`⚠ Manuscript will need regeneration to reflect new transcript.`);
+    } catch (err) {
+      setAudioSourceStatuses((prev) => {
+        const next = [...prev];
+        next[slot] = "error";
+        return next;
+      });
+      addLog(`✗ ${label} retranscribe failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      throw err;
+    }
+  }, [addLog]);
+
+  const handleTranscriptEdit = useCallback((slot: number, newTranscript: string) => {
+    const label = `Slot-${slot + 1}`;
+    setSourceTranscripts((prev) => {
+      const next = [...prev];
+      const existing = next.find((t) => t.label === label);
+      if (existing) {
+        existing.text = newTranscript;
+      } else {
+        next.push({ label, text: newTranscript });
+      }
+      return next;
+    });
+    addLog(`✓ ${label} transcript edited manually — ${countWords(newTranscript).toLocaleString()} words`);
+  }, [addLog]);
+
+  const handleRemoveSource = useCallback((slot: number) => {
+    const label = `Slot-${slot + 1}`;
+    setAudioFiles((prev) => {
+      const next = [...prev];
+      next[slot] = null;
+      return next;
+    });
+    setTranscriptFiles((prev) => {
+      const next = [...prev];
+      next[slot] = null;
+      return next;
+    });
+    setSourceTranscripts((prev) => prev.filter((t) => t.label !== label));
+    setAudioSourceStatuses((prev) => {
+      const next = [...prev];
+      next[slot] = "idle";
+      return next;
+    });
+    addLog(`✗ ${label} removed from pipeline`);
+    addLog(`⚠ Manuscript will need regeneration to reflect source removal.`);
+  }, [addLog]);
+
   // ── Resolve one slot: use pre-existing transcript or call Deepgram ─────────
 
   async function resolveSlot(
@@ -2431,11 +2561,30 @@ export function EbookPipeline({
       if (!masterTranscript) {
         type FilterResult = { cleanedTranscript: string; removedSegments: { reason: string; excerpt: string }[]; summary: string };
         const transcriptResults: { label: string; text: string }[] = [];
+
+        // Reset all statuses to idle before starting
+        setAudioSourceStatuses(["idle", "idle", "idle", "idle", "idle", "idle"]);
+
         setStage("filtering");
         for (let i = 0; i < 6; i++) {
           if (!audioFiles[i] && !transcriptFiles[i]) continue;
           const label = `Slot-${i + 1}`;
+          
+          // Mark as transcribing
+          setAudioSourceStatuses((prev) => {
+            const next = [...prev];
+            next[i] = "transcribing";
+            return next;
+          });
+
           const rawText = await resolveSlot(audioFiles[i], transcriptFiles[i], label);
+
+          // Mark as complete
+          setAudioSourceStatuses((prev) => {
+            const next = [...prev];
+            next[i] = "complete";
+            return next;
+          });
 
           // ── Per-slot signal filter — catches opening prayers, closings, altar
           //    calls and announcements specific to each audio/transcript file ──
@@ -3723,7 +3872,7 @@ export function EbookPipeline({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-700/40 bg-slate-900/50 p-1.5">
+            <div className="grid grid-cols-3 gap-2 rounded-xl border border-slate-700/40 bg-slate-900/50 p-1.5">
               <button
                 type="button"
                 onClick={() => setReviewTab("manuscript")}
@@ -3747,6 +3896,18 @@ export function EbookPipeline({
                 ].join(" ")}
               >
                 Source Map
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewTab("audio-sources")}
+                className={[
+                  "min-h-[48px] rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+                  reviewTab === "audio-sources"
+                    ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+                    : "border-slate-700/50 bg-slate-900/60 text-slate-300",
+                ].join(" ")}
+              >
+                Audio Sources
               </button>
             </div>
 
@@ -4030,6 +4191,37 @@ export function EbookPipeline({
                     }));
                     void persistSourceMapState(sectionAssignments);
                   }}
+                />
+              </>
+            )}
+
+            {/* Audio Sources Tab */}
+            {reviewTab === "audio-sources" && (
+              <>
+                <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-amber-300 mb-1">Audio Source Management</p>
+                  <p className="text-xs text-slate-300">
+                    Retranscribe individual audio sources or edit transcripts manually. Changes require manuscript regeneration.
+                  </p>
+                </div>
+
+                <AudioSourceManager
+                  audioSources={[0, 1, 2, 3, 4, 5].map((i) => {
+                    const label = `Slot-${i + 1}`;
+                    const transcript = sourceTranscripts.find((t) => t.label === label);
+                    return {
+                      slot: i,
+                      label,
+                      audioFile: audioFiles[i],
+                      transcriptFile: transcriptFiles[i],
+                      currentTranscript: transcript?.text ?? "",
+                      status: audioSourceStatuses[i],
+                      wordCount: countWords(transcript?.text ?? ""),
+                    };
+                  })}
+                  onRetranscribe={handleRetranscribe}
+                  onTranscriptEdit={handleTranscriptEdit}
+                  onRemoveSource={handleRemoveSource}
                 />
               </>
             )}
