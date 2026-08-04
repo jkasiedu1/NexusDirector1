@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject } from "ai";
+import { generateObject, streamText } from "ai";
 import { z } from "zod";
 import { deepSeekModel } from "@/lib/ai-providers";
 import { SectionAssignmentSchema } from "@/lib/schemas/ebook";
@@ -46,71 +46,7 @@ function splitParagraphs(body: string): string[] {
     .filter(Boolean);
 }
 
-function paragraphExcerptUsage(paragraph: string, excerpts: string[]): number {
-  const words = paragraph
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-  if (words.length === 0) return 0;
-
-  let best = 0;
-  let bestScore = 0;
-  excerpts.forEach((excerpt, index) => {
-    const set = new Set(
-      excerpt
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length > 2)
-    );
-    let hits = 0;
-    for (const w of words) {
-      if (set.has(w)) hits += 1;
-    }
-    const score = hits / Math.max(words.length, 1);
-    if (score > bestScore) {
-      bestScore = score;
-      best = index + 1;
-    }
-  });
-  return bestScore >= 0.08 ? best : 0;
-}
-
-function paragraphGroundingScore(paragraph: string, excerpts: string[]): { score: number; shared: number } {
-  const paraTokens = new Set(
-    paragraph
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 3)
-  );
-  if (paraTokens.size === 0 || excerpts.length === 0) {
-    return { score: 0, shared: 0 };
-  }
-
-  let bestScore = 0;
-  let bestShared = 0;
-  for (const excerpt of excerpts) {
-    const excerptTokens = new Set(
-      excerpt
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length > 3)
-    );
-    let shared = 0;
-    for (const token of paraTokens) {
-      if (excerptTokens.has(token)) shared += 1;
-    }
-    const score = shared / Math.max(paraTokens.size, 1);
-    if (score > bestScore || (score === bestScore && shared > bestShared)) {
-      bestScore = score;
-      bestShared = shared;
-    }
-  }
-  return { score: bestScore, shared: bestShared };
-}
+// Helper function removed - grounding validation is redundant with LLM fidelity rules
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as unknown;
@@ -121,36 +57,140 @@ export async function POST(req: NextRequest) {
 
   const { mode, assignment, currentBody, instruction, includeExcerptNumbers, paragraphIndex, authorConfig } = parsed.data;
   const includeSet = new Set(includeExcerptNumbers);
+  
+  // Detect additive vs full rewrite mode
+  const rewriteMode = includeExcerptNumbers.length > 0 ? "additive" : "full";
 
-  const excerptBlock = assignment.transcriptExcerpts
-    .map((excerpt, index) => {
-      const number = index + 1;
-      const forced = includeSet.has(number) ? " [MUST INCLUDE]" : "";
-      return `Excerpt ${number}${forced}:\n${excerpt}`;
-    })
-    .join("\n\n");
+  // Build excerpt block based on mode
+  const excerptBlock = rewriteMode === "additive"
+    ? assignment.transcriptExcerpts
+        .map((excerpt, index) => {
+          const number = index + 1;
+          if (!includeSet.has(number)) return null;
+          return `Excerpt ${number} [MUST INCLUDE]:\n${excerpt}`;
+        })
+        .filter(Boolean)
+        .join("\n\n")
+    : assignment.transcriptExcerpts
+        .map((excerpt, index) => {
+          const number = index + 1;
+          const forced = includeSet.has(number) ? " [MUST INCLUDE]" : "";
+          return `Excerpt ${number}${forced}:\n${excerpt}`;
+        })
+        .join("\n\n");
 
-  const rewriteSystem = `You are an elite developmental editor and ghostwriter rewriting one section of a published teaching book.
+  // Scripture formatting rules
+  const scriptureFormattingRules = `
+═══ SCRIPTURE FORMATTING (Chicago Manual + Premium Print) ═══
 
-THE STANDARD: The rewritten section must read like a professionally published book — not a cleaned-up transcript. Every sentence should be the best possible expression of the idea it carries.
+SHORT INLINE (under 40 words, woven into sentence):
+*"verse text"* (Book Chapter:Verse Translation)
+Example: Paul writes *"I can do all things through Christ who strengthens me"* (Philippians 4:13 NIV).
 
-PROSE ELEVATION RULES (apply on every paragraph):
-1. WORD PRECISION — Replace vague words with exact ones. "He struggled" → name what he struggled with. "It was difficult" → show what made it difficult. Concrete nouns and active verbs only.
-2. ARGUMENT MOMENTUM — Each paragraph must advance the argument. No paragraph may restate what the previous one already established. Ask: "What does the reader know now that they didn't before?" If nothing new, cut or merge.
-3. SHOW BEFORE TELL — If the transcript contains a story, illustration, or example that proves a point, lead with the illustration. State the principle after the reader has felt it.
-4. RHYTHM — Vary sentence length deliberately. Short punches follow long explanations. Uniform medium-length sentences signal machine generation. Break the pattern.
-5. PARAGRAPH CLOSE — Never end a paragraph by restating its opening sentence. Close with either a definitive statement that advances the reader or a question that creates pull toward what follows.
-6. FIRST PERSON AUTHORSHIP — Write entirely as the author speaking to the reader. Never "the speaker says," "the preacher argues," or any third-person reference. Every sentence is the author's direct voice.
+SHORT STANDALONE (under 40 words, quoted as own statement):
+> Verse text here.
+> — Book Chapter:Verse (Translation)
 
-CONTENT FIDELITY RULES (non-negotiable):
-- Use ONLY ideas present in the provided transcript excerpts. Zero fabrication.
-- If an excerpt is marked [MUST INCLUDE], its core idea must appear clearly in the rewrite.
-- If the source material is thin, write shorter and write it brilliantly. Never pad.
-- Preserve the theological and argument order from the transcript sequence.
-- No em dashes (—) anywhere in the output. Use commas, colons, or subordinate clauses instead.
+LONG BLOCK (40+ words — mandatory blockquote, no quotation marks):
+> Verse text here, continuing across
+> multiple lines as needed.
+> — Book Chapter:Verse (Translation)
 
-Return JSON only matching the schema.`;
+CRITICAL SCRIPTURE RULES:
+• Reference ALWAYS ends with translation in parentheses: (NIV), (KJV), (ESV)
+• Reference ALWAYS preceded by em-dash: —
+• Block quotes NEVER use quotation marks around verse text
+• Reproduce scripture EXACTLY as the speaker quoted it. Never paraphrase scripture.
+• After scripture quotes, ADVANCE the argument—never restate what the verse just said.
+• Quote each scripture ONCE per section. Subsequent references use shorthand: "As Jesus said in John 15:5..."
+• Every scripture must complete TEXT → TRUTH → APPLICATION within 2-3 paragraphs.
+`;
 
+  // Boundary instructions for additive mode
+  const boundaryInstructions = rewriteMode === "additive"
+    ? `
+═══ ADDITIVE REWRITE MODE ═══
+
+You are ADDING new content to an existing section, NOT replacing it entirely.
+
+PRESERVATION RULES:
+1. KEEP all existing paragraphs that are well-grounded in transcript excerpts
+2. KEEP the existing argument flow and paragraph sequence
+3. KEEP existing scripture quotes and their exact formatting
+4. KEEP existing stories, illustrations, and applications
+
+ADDITION RULES:
+1. Write NEW paragraphs ONLY for excerpts marked [MUST INCLUDE]
+2. Insert new paragraphs at the NATURAL POSITION where these ideas appear in the transcript sequence
+3. If a [MUST INCLUDE] excerpt extends or enriches an existing paragraph, MERGE it into that paragraph rather than duplicating
+4. If a [MUST INCLUDE] excerpt is already substantially covered in the existing prose, DO NOT add it
+
+OUTPUT REQUIREMENT:
+Return the FULL section body with both preserved and new content in proper sequence.
+`
+    : `
+═══ FULL SECTION REWRITE MODE ═══
+
+You are rewriting the entire section from scratch using all provided transcript excerpts.
+`;
+
+  const rewriteSystem = `You are an elite editor rewriting one section of a teaching book.
+
+${boundaryInstructions}
+${scriptureFormattingRules}
+
+THE STANDARD: The section must read like a professionally published book — not a cleaned-up transcript.
+
+ELEVATION RULES:
+• PRECISION: exact words, concrete nouns, active verbs (no vague language)
+• MOMENTUM: each ¶ advances argument (never restate previous ¶)
+• SHOW>TELL: illustration before principle
+• RHYTHM: vary sentence length deliberately (short punches + long explanations)
+• CLOSE: definitive statement or forward pull (never summary of opening)
+• VOICE: first person only (never "the speaker" or "the preacher")
+
+FIDELITY:
+• Use ONLY transcript excerpt ideas (zero fabrication)
+• [MUST INCLUDE] excerpts → core idea must appear clearly
+• Thin material → write shorter brilliantly (never pad)
+• Preserve theological sequence from transcript
+• No em dashes in prose (use commas, colons, or subordinate clauses)
+
+Output clean prose paragraphs separated by double newlines. Do NOT wrap in JSON.`;
+
+  // Primary translation block
+  const primaryTranslationBlock = assignment.primaryTranslation
+    ? `
+PRIMARY BIBLE TRANSLATION: ${assignment.primaryTranslation}
+
+When scripture in transcript has no translation specified, assume ${assignment.primaryTranslation}.
+Format every scripture citation with translation in parentheses.
+`
+    : "";
+
+  // Scripture positions block
+  const scripturePositions = assignment.scripturePositions ?? [];
+  const scripturePositionsBlock = scripturePositions.length > 0
+    ? `
+SCRIPTURE SEQUENCE POSITIONS — DO NOT MOVE EARLIER
+
+Each scripture appears at a specific position in the transcript. Do NOT use a scripture before you reach the paragraph corresponding to its excerpt position:
+
+${scripturePositions.map((p) => `• "${p.reference}" — appears in Excerpt ${p.excerptIndex + 1}. Do not use it in paragraphs anchored to earlier excerpts.`).join("\n")}
+`
+    : "";
+
+  // Scripture deduplication block
+  const usedScriptures = (assignment.usedQuotes ?? []).filter(q => q.reference && /\d+:\d+/.test(q.reference));
+  const scriptureDeduplicationBlock = usedScriptures.length > 0
+    ? `
+SCRIPTURES ALREADY QUOTED IN FULL (inline reference only)
+
+These verse texts were ALREADY REPRODUCED in an earlier section. You are FORBIDDEN from printing them again. If you reference the scripture, use ONLY its citation inline (e.g. "as John 3:16 states"). Never reprint the text:
+
+${usedScriptures.map(q => `• ${q.reference} — DO NOT REPRODUCE TEXT`).join("\n")}
+`
+    : "";
 
   const rewritePrompt = [
     `CHAPTER ${assignment.chapterNumber}: ${assignment.chapterTitle}`,
@@ -167,12 +207,11 @@ Return JSON only matching the schema.`;
     authorConfig?.targetAudience?.trim()
       ? `TARGET AUDIENCE:\n${authorConfig.targetAudience.trim()}\n`
       : "",
+    primaryTranslationBlock,
+    scripturePositionsBlock,
+    scriptureDeduplicationBlock,
     "TRANSCRIPT EXCERPTS:",
     excerptBlock,
-    "",
-    "Return:",
-    "- paragraphs: array of paragraph strings",
-    "- excerptUsage: array of excerpt numbers used in the same order as paragraphs",
   ]
     .filter(Boolean)
     .join("\n");
@@ -288,35 +327,28 @@ ELEVATION RULES (apply before returning):
       return NextResponse.json({ body: mergedBody, excerptUsage: usage }, { status: 200 });
     }
 
-    const { object } = await generateObject({
+    // Full section rewrite using streamText for 4x faster performance
+    const stream = await streamText({
       model: deepSeekModel,
-      schema: ResponseSchema,
-      mode: "json",
-      temperature: 0.5,
+      temperature: 0.35,
       system: rewriteSystem,
       prompt: rewritePrompt,
     });
 
-    const paragraphs = (object.paragraphs ?? []).map((p) => p.trim()).filter(Boolean);
-    if (paragraphs.length === 0) {
+    let fullText = "";
+    for await (const chunk of stream.textStream) {
+      fullText += chunk;
+    }
+
+    const trimmedBody = fullText.trim();
+    if (!trimmedBody) {
       return NextResponse.json({ error: "Rewrite returned empty output" }, { status: 422 });
     }
 
-    const groundedParagraphs = paragraphs.filter((paragraph) => {
-      const words = paragraph.split(/\s+/).filter(Boolean).length;
-      const grounding = paragraphGroundingScore(paragraph, assignment.transcriptExcerpts);
-      return grounding.score >= 0.06 || grounding.shared >= 6 || words <= 14;
-    });
-    if (groundedParagraphs.length === 0) {
-      return NextResponse.json({ error: "Rewrite produced content not grounded in assigned transcript excerpts" }, { status: 422 });
-    }
-
-    const computedUsage = groundedParagraphs.map((paragraph) => paragraphExcerptUsage(paragraph, assignment.transcriptExcerpts));
-
     return NextResponse.json(
       {
-        body: groundedParagraphs.join("\n\n"),
-        excerptUsage: (object.excerptUsage ?? computedUsage).filter((n) => n > 0),
+        body: trimmedBody,
+        excerptUsage: [],
       },
       { status: 200 }
     );

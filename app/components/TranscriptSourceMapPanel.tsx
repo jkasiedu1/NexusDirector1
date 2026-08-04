@@ -99,6 +99,8 @@ export function TranscriptSourceMapPanel({
   });
   const [selectedExcerptNumbers, setSelectedExcerptNumbers] = useState<Set<number>>(new Set());
   const [rewriteInstruction, setRewriteInstruction] = useState("");
+  const [critiqueBusy, setCritiqueBusy] = useState(false);
+  const [refineBusy, setRefineBusy] = useState(false);
   const [rewriteBusy, setRewriteBusy] = useState(false);
   const [rewriteError, setRewriteError] = useState<string | null>(null);
   const [activeExcerptNumber, setActiveExcerptNumber] = useState<number | null>(null);
@@ -252,7 +254,13 @@ export function TranscriptSourceMapPanel({
       return;
     }
 
-    setRewriteBusy(true);
+    const setBusyState = (busy: boolean) => {
+      if (mode === "critiqueSection") setCritiqueBusy(busy);
+      else if (mode === "refineParagraph") setRefineBusy(busy);
+      else setRewriteBusy(busy);
+    };
+
+    setBusyState(true);
     setRewriteError(null);
     if (mode !== "critiqueSection") setCritique(null);
 
@@ -291,7 +299,7 @@ export function TranscriptSourceMapPanel({
     } catch (err) {
       setRewriteError(err instanceof Error ? err.message : "Rewrite failed");
     } finally {
-      setRewriteBusy(false);
+      setBusyState(false);
     }
   };
 
@@ -540,19 +548,19 @@ export function TranscriptSourceMapPanel({
               <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                 <button
                   type="button"
-                  disabled={rewriteBusy}
+                  disabled={critiqueBusy}
                   onClick={() => void applyAssistant("critiqueSection")}
                   className="min-h-[48px] rounded-xl border border-violet-400/40 bg-violet-500/15 px-3 py-2 text-sm font-semibold text-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {rewriteBusy ? "Working..." : "Critique Section"}
+                  {critiqueBusy ? "Working..." : "Critique Section"}
                 </button>
                 <button
                   type="button"
-                  disabled={rewriteBusy || selectedParagraphIndex === null}
+                  disabled={refineBusy || selectedParagraphIndex === null}
                   onClick={() => void applyAssistant("refineParagraph")}
                   className="min-h-[48px] rounded-xl border border-cyan-400/40 bg-cyan-500/15 px-3 py-2 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {rewriteBusy
+                  {refineBusy
                     ? "Working..."
                     : selectedParagraphIndex === null
                     ? "Select paragraph to refine"
