@@ -98,13 +98,6 @@ TRANSITIONS:
 - Mid-chapter summary transitions ("So, as we have seen...", "To summarize...") are forbidden.
 - Never stack two rhetorical questions in back-to-back sentences.
 
-PARAGRAPH CLOSING DISCIPLINE (enforce on every final paragraph of a section):
-The last sentence of every section is the reader's exit ramp. Apply ONE of these THREE closing strategies (never use the same strategy twice in a row across sections):
-1. FORWARD PULL: End with an unresolved question or implication. Example: "Which raises the question: if faith unlocks the impossible, why do so many believers still live in the realm of the ordinary?" DO NOT preview the next section.
-2. DECLARATIVE LANDING: End with a strong, non-negotiable statement. Example: "Prayer is not the last resort. It is the first weapon." Avoid restating what was already said—land a NEW implication.
-3. STORY PIVOT: End with a concrete image or action that crystallizes the principle without explaining it. Example: "Peter stepped out of the boat. The water held."
-FORBIDDEN: Summaries ("So prayer is powerful"), flat generalizations ("This is important"), previews ("Next we'll explore...").
-
 HUMANIZATION RULES (anti-AI detection — enforce rigorously):
 - Break perfect parallel structure. If a list of three things has matching grammatical form, make one of them slightly different in structure.
 - Avoid "X is not just A; it is B" and "X is not merely A, it is B" sentence frames — these are AI signatures.
