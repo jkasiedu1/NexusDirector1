@@ -886,7 +886,7 @@ function ChapterCard({
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Key Takeaways</label>
                 <textarea
-                  value={chapter.keyTakeaways.join("\n")}
+                  value={(chapter.keyTakeaways ?? []).join("\n")}
                   onChange={(e) => patchListField("keyTakeaways", e.target.value)}
                   rows={5}
                   className="w-full rounded-xl border border-slate-700/60 bg-slate-950/70 px-3 py-2 text-base text-slate-100 outline-none focus:border-cyan-500/40"
@@ -895,17 +895,17 @@ function ChapterCard({
               <div>
                 <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Reflection Questions</label>
                 <textarea
-                  value={chapter.reflectionQuestions.join("\n")}
+                  value={(chapter.reflectionQuestions ?? []).join("\n")}
                   onChange={(e) => patchListField("reflectionQuestions", e.target.value)}
                   rows={5}
                   className="w-full rounded-xl border border-slate-700/60 bg-slate-950/70 px-3 py-2 text-base text-slate-100 outline-none focus:border-cyan-500/40"
                 />
               </div>
             </div>
-          ) : chapter.keyTakeaways.length > 0 && (
+          ) : (chapter.keyTakeaways?.length ?? 0) > 0 && (
             <div className="mt-2 rounded-lg bg-cyan-500/8 border border-cyan-500/20 p-3">
               <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2">Key Takeaways</p>
-              {chapter.keyTakeaways.map((t, i) => (
+              {(chapter.keyTakeaways ?? []).map((t, i) => (
                 <p key={i} className="text-xs text-slate-300 leading-relaxed">• {t}</p>
               ))}
             </div>

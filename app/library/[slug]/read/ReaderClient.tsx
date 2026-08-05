@@ -596,7 +596,7 @@ function ChapterView({
       )}
 
       {/* Reflection & takeaways (collapsible) */}
-      {(chapter.reflectionQuestions.length > 0 || chapter.keyTakeaways.length > 0) && (
+      {((chapter.reflectionQuestions?.length ?? 0) > 0 || (chapter.keyTakeaways?.length ?? 0) > 0) && (
         <div style={{ marginTop: "3.5em", borderTop: `1px solid ${theme.border}`, paddingTop: "2em" }}>
           <button
             onClick={() => setShowExtras((v) => !v)}
@@ -623,25 +623,25 @@ function ChapterView({
 
           {showExtras && (
             <div>
-              {chapter.keyTakeaways.length > 0 && (
+              {(chapter.keyTakeaways?.length ?? 0) > 0 && (
                 <div style={{ marginBottom: "2.25em" }}>
                   <p style={{ fontSize: "0.65em", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: theme.muted, marginBottom: "1em", fontFamily }}>
                     Key Takeaways
                   </p>
                   <ul style={{ paddingLeft: "1.6em", color: theme.text, listStyleType: "disc" }}>
-                    {chapter.keyTakeaways.map((item, idx2) => (
+                    {(chapter.keyTakeaways ?? []).map((item, idx2) => (
                       <li key={idx2} style={{ marginBottom: "0.65em", lineHeight: 1.7, display: "list-item" }}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {chapter.reflectionQuestions.length > 0 && (
+              {(chapter.reflectionQuestions?.length ?? 0) > 0 && (
                 <div>
                   <p style={{ fontSize: "0.65em", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: theme.muted, marginBottom: "1em", fontFamily }}>
                     Reflection Questions
                   </p>
                   <ol style={{ paddingLeft: "1.6em", color: theme.text, listStyleType: "decimal" }}>
-                    {chapter.reflectionQuestions.map((q, qi) => (
+                    {(chapter.reflectionQuestions ?? []).map((q, qi) => (
                       <li key={qi} style={{ marginBottom: "0.65em", lineHeight: 1.7, display: "list-item" }}>{q}</li>
                     ))}
                   </ol>

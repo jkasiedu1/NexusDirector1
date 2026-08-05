@@ -123,15 +123,15 @@ function buildChapterText(ch: ChapterDraft): string {
     parts.push(ch.forwardQuestion.trim());
   }
 
-  if (ch.keyTakeaways.length > 0) {
+  if ((ch.keyTakeaways?.length ?? 0) > 0) {
     parts.push("Key Takeaways");
-    parts.push(ch.keyTakeaways.join(". "));
+    parts.push((ch.keyTakeaways ?? []).join(". "));
   }
 
-  if (ch.reflectionQuestions.length > 0) {
+  if ((ch.reflectionQuestions?.length ?? 0) > 0) {
     parts.push("Reflection Questions");
     parts.push(
-      ch.reflectionQuestions
+      (ch.reflectionQuestions ?? [])
         .map((question, idx) => `${idx + 1}. ${question}`)
         .join(" "),
     );
