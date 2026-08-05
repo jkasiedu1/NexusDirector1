@@ -2366,20 +2366,20 @@ export function EbookPipeline({
 
       // If no existing chapters use this source, generate new chapters
       if (affectedChapterNumbers.size === 0) {
-        addLog(`No existing chapters found. Generating new chapters from ${label}...`);
+        addLog(`No existing chapters found. Generating 1 chapter from ${label}...`);
         
-        // Create new architecture from this transcript alone
+        // Create new architecture from this transcript alone (1 source = 1 chapter)
         const newArchitecture = await postJson<BookArchitecture>("/api/ebook/architect", {
           contentMap: sourceContentMap,
           voiceDNA,
-          oneChapterPerUpload: false,
+          oneChapterPerUpload: true,
         });
         
-        addLog(`✓ Architecture: ${newArchitecture.chapters.length} new chapter(s) planned`);
+        addLog(`✓ Architecture: 1 chapter planned (${newArchitecture.chapters[0]?.title || "Untitled"})`);
         
-        // Add these as new chapters to the manuscript
-        for (const chapter of newArchitecture.chapters) {
-          affectedChapterNumbers.add(chapter.number);
+        // Use only the first chapter (should be exactly 1 when oneChapterPerUpload=true)
+        if (newArchitecture.chapters[0]) {
+          affectedChapterNumbers.add(newArchitecture.chapters[0].number);
         }
       }
 
