@@ -2474,7 +2474,7 @@ export function EbookPipeline({
           
           const sectionRes = await postJson<{ body: string; quotes: Array<{ id: string; text: string; reference: string; translation: string; type: "scripture" | "quote" | "proverb"; isBlockQuote: boolean }> }>(
             "/api/ebook/write-section",
-            assignment
+            { assignment }
           );
 
           newSections.push({
