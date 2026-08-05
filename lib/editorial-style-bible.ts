@@ -119,7 +119,6 @@ When the author recounts a conversation, exchange, or paraphrased dialogue (incl
 - AVOID PLAY-SCRIPT FORMAT: Never format a conversation as "Person A: [text]" and "Person B: [text]" — this is a devotional book, not a transcript.
 - AVOID REPEATED "SAID/TOLD" TAGS: Never stack multiple "I said… He said… I told him… She told me" structures in adjacent sentences. Vary with action beats, indirect speech, and narrative transitions.
 - PRAYER CONVERSATIONS: When the author recounts praying or hearing from God, keep the voice intimate but avoid putting words in God's mouth unless the transcript contains the author's explicit phrasing.
-- INTERPERSONAL EXCHANGE COMPRESSION: If the transcript recounts a back-and-forth spanning 3+ exchanges, compress into narrative summary preserving the conclusion without mechanical volley. Example: "And I said, 'What will you do?' And he said, 'I don't know.' And I said, 'Figure it out.'" → "When I pressed him for a plan, he had no answer—just uncertain silence that forced me to push harder."
 `;
 
 const AUDIENCE_PATTERNS = [
