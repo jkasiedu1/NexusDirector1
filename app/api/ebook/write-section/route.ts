@@ -63,11 +63,13 @@ async function fallbackSectionBody(input: z.infer<typeof WriteSectionRequestSche
       maxTokens: 1200,
       system: `You are a professional book editor. Rewrite the raw spoken transcript below into clean, polished book prose.
 
-RULES:
-- Every idea must come from the transcript — zero fabrication
-- Remove all spoken-language artifacts: stutters, false starts ("I mean", "you know", "uh"), repeated words, filler phrases
-- Fix broken grammar and incomplete sentences into proper prose
-- Remove all live-event language: "look at your neighbor", "say amen", "here in this church"
+${SOURCE_LOCK_RULES}
+
+${READER_NORMALIZATION_RULES}
+
+${PREMIUM_BOOK_STYLE_RULES}
+
+ADDITIONAL RULES:
 - Output 3–6 prose paragraphs separated by blank lines — no headings, no markdown
 - Write shorter output rather than invent content`,
       prompt: `SECTION HEADING: ${input.heading}\n\nRAW TRANSCRIPT:\n${rawExcerpts.slice(0, 4000)}`,
@@ -389,7 +391,7 @@ ARGUMENT FLOW:
 • After scripture quotes, ADVANCE the argument—never restate what the verse just said.
 
 ═══ SCRIPTURE FORMATTING (Chicago Manual + Premium Print) ═══
-SHORT INLINE (under 40 words, woven into sentence): *"verse text"* (Book Chapter:Verse Translation)
+SHORT INLINE (under 40 words, woven into sentence): *"verse text"* (Book Chapter:Verse, Translation)
 SHORT STANDALONE (under 40 words, quoted as own statement):
 > Verse text here.
 > — Book Chapter:Verse (Translation)
@@ -408,7 +410,6 @@ CRITICAL RULES:
 • Never add biblical background (historical setting, authorial intent, cultural context) unless the speaker explicitly stated it.
 • Every scripture must complete TEXT → TRUTH → APPLICATION within 2-3 paragraphs of the quotation.
 • Always include translation abbreviation: (NIV), (KJV), (ESV), etc.
-• Reference line format is ALWAYS: — Book Chapter:Verse (Translation) with em-dash, space before book name, translation in parentheses.
 
 ═══ VOICE DNA ENFORCEMENT ═══
 When Voice DNA is provided, you MUST:
@@ -937,34 +938,12 @@ ${isAbsoluteFirstSection ? "" : "\nTRANSITIONAL OPENING: Open with \"Having seen
       unfullfilledHook = openingHook;
       console.warn(`[write-section] Unfulfilled hook in Ch${assignment.chapterNumber} §${assignment.sectionNumber}: "${openingHook.slice(0, 80)}"`);
     }
-    
-    // ── Theological drift detector (validates doctrinal keyword substitutions) ──
-    const DOCTRINAL_KEYWORDS = [
-      { term: "by grace", avoid: ["through grace", "with grace"], reason: "Reformed soteriology" },
-      { term: "atonement", avoid: ["satisfaction", "propitiation"], reason: "Atonement theory variance" },
-      { term: "elder", avoid: ["bishop", "overseer"], reason: "Polity structure" },
-    ];
-    const transcriptText = effectiveExcerpts.join(" ").toLowerCase();
-    const outputText = body.toLowerCase();
-    const doctrinalWarnings: string[] = [];
-    for (const { term, avoid, reason } of DOCTRINAL_KEYWORDS) {
-      const speakerUsed = transcriptText.includes(term);
-      const llmSubstituted = avoid.some((alt) => outputText.includes(alt));
-      if (speakerUsed && llmSubstituted) {
-        doctrinalWarnings.push(`Speaker used "${term}" but output substituted variant (${reason})`);
-      }
-    }
-    if (doctrinalWarnings.length > 0) {
-      console.warn(`[write-section] Doctrinal drift in Ch${assignment.chapterNumber} §${assignment.sectionNumber}: ${doctrinalWarnings.join("; ")}`);
-    }
-    
       return {
         body,
         claimLedger: object.claimLedger ?? [],
         passiveVoiceCount: passiveHits.length,
         unfullfilledHook,
         sequenceBreakCount,
-        doctrinalWarnings: doctrinalWarnings.length > 0 ? doctrinalWarnings : undefined,
       };
     } catch (err) {
       const fallbackBody = stripAudienceLanguage(normalizeReaderFacingProse(await fallbackSectionBody(assignment)));

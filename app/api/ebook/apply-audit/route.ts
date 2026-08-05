@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import { deepSeekReasonerModel } from "@/lib/ai-providers";
 import { z } from "zod";
 import { VoiceDNASchema } from "@/lib/schemas/ebook";
-import { SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
+import { SOURCE_LOCK_RULES, PREMIUM_BOOK_STYLE_RULES, READER_NORMALIZATION_RULES } from "@/lib/editorial-style-bible";
 
 type VoiceDNAType = z.infer<typeof VoiceDNASchema>;
 
@@ -203,11 +203,13 @@ RULES:
 - Change ONLY what is necessary to address the task above
 - Preserve every scripture reference, quote, and theological teaching point
 - WORD COUNT: The original section is ${originalWordCount} words. Target ${minWords}–${maxWords} words (98–102% of original).
-- Keep the same sentence rhythm and paragraph structure
-- Never use an em dash (— or --)
 - Return the revised body as plain prose text only
 
-${SOURCE_LOCK_RULES}`,
+${SOURCE_LOCK_RULES}
+
+${READER_NORMALIZATION_RULES}
+
+${PREMIUM_BOOK_STYLE_RULES}`,
     });
     text = result.text.trim();
   } catch (err) {

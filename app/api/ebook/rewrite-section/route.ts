@@ -3,6 +3,7 @@ import { generateObject, streamText } from "ai";
 import { z } from "zod";
 import { deepSeekModel } from "@/lib/ai-providers";
 import { SectionAssignmentSchema } from "@/lib/schemas/ebook";
+import { PREMIUM_BOOK_STYLE_RULES, SOURCE_LOCK_RULES, READER_NORMALIZATION_RULES } from "@/lib/editorial-style-bible";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -139,22 +140,16 @@ You are rewriting the entire section from scratch using all provided transcript 
 ${boundaryInstructions}
 ${scriptureFormattingRules}
 
-THE STANDARD: The section must read like a professionally published book — not a cleaned-up transcript.
+${SOURCE_LOCK_RULES}
 
-ELEVATION RULES:
-• PRECISION: exact words, concrete nouns, active verbs (no vague language)
-• MOMENTUM: each ¶ advances argument (never restate previous ¶)
-• SHOW>TELL: illustration before principle
-• RHYTHM: vary sentence length deliberately (short punches + long explanations)
-• CLOSE: definitive statement or forward pull (never summary of opening)
-• VOICE: first person only (never "the speaker" or "the preacher")
+${READER_NORMALIZATION_RULES}
 
-FIDELITY:
-• Use ONLY transcript excerpt ideas (zero fabrication)
+${PREMIUM_BOOK_STYLE_RULES}
+
+ADDITIONAL FIDELITY RULES:
 • [MUST INCLUDE] excerpts → core idea must appear clearly
 • Thin material → write shorter brilliantly (never pad)
 • Preserve theological sequence from transcript
-• No em dashes in prose (use commas, colons, or subordinate clauses)
 
 Output clean prose paragraphs separated by double newlines. Do NOT wrap in JSON.`;
 

@@ -146,7 +146,11 @@ Write 3–7 discussion questions per chapter. Rules:
 TASK 3 — RECOMMENDED RESOURCES:
 List any resources the author specifically mentioned in the book (books, passages, teachings). Do not add resources the author didn't reference. If none were mentioned, return an empty array.
 
-${SOURCE_LOCK_RULES}`;
+${SOURCE_LOCK_RULES}
+
+${READER_NORMALIZATION_RULES}
+
+${PREMIUM_BOOK_STYLE_RULES}`;
 
   const backmatterPrompt = `Book: "${manifest.bookTitle}"${manifest.subtitle ? ` — ${manifest.subtitle}` : ""}
 Author: ${manifest.authorName}
