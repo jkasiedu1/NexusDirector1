@@ -2488,15 +2488,52 @@ export function EbookPipeline({
           addLog(`    ✓ Section ${assignment.sectionNumber} — ${countWords(sectionRes.body).toLocaleString()} words`);
         }
 
-        // Step 8: Update the manifest with the restructured chapter
+        // Step 7b: Polish the chapter (add intro, takeaways, forward question)
+        addLog(`  Polishing Chapter ${chapterNum}...`);
+        
+        const chapterSegmentTexts = newSectionAssignments.flatMap((a) => a.transcriptExcerpts);
+        const polishInput = {
+          number: chapterNum,
+          title: newChapterBlueprint.title,
+          sections: newSections.map((s) => ({
+            chapterNumber: chapterNum,
+            sectionNumber: s.sectionNumber,
+            heading: s.heading,
+            body: s.body,
+            wordCount: s.wordCount,
+            status: "complete" as const,
+          })),
+          chapterSegmentTexts,
+          voiceDNA,
+          quotesInChapter: newChapterBlueprint.quotesInChapter ?? [],
+          chapterPremise: newChapterBlueprint.chapterPremise,
+        };
+
+        const polished = await postJson<{
+          intro: string;
+          epigraph: string;
+          forwardQuestion: string;
+          keyTakeaways: string[];
+          reflectionQuestions: string[];
+        }>("/api/ebook/polish", { input: polishInput });
+
+        addLog(`  ✓ Chapter ${chapterNum} polished`);
+
+        // Step 8: Update the manifest with the polished chapter
         if (completedManifest) {
           updateCompletedManifest((current) => {
             const existingChapterIndex = current.chapters.findIndex((c) => c.number === chapterNum);
             const updatedChapter = {
               number: chapterNum,
               title: newChapterBlueprint.title,
+              intro: polished.intro,
+              epigraph: polished.epigraph,
               sections: newSections,
+              forwardQuestion: polished.forwardQuestion,
+              keyTakeaways: polished.keyTakeaways,
+              reflectionQuestions: polished.reflectionQuestions,
               totalWordCount: newSections.reduce((sum, s) => sum + s.wordCount, 0),
+              status: "complete" as const,
             };
             
             if (existingChapterIndex >= 0) {
