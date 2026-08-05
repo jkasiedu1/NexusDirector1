@@ -127,11 +127,6 @@ When the author recounts a conversation, exchange, or paraphrased dialogue (incl
 - AVOID REPEATED "SAID/TOLD" TAGS: Never stack multiple "I said… He said… I told him… She told me" structures in adjacent sentences. Vary with action beats, indirect speech, and narrative transitions.
 - PRAYER CONVERSATIONS: When the author recounts praying or hearing from God, keep the voice intimate but avoid putting words in God's mouth unless the transcript contains the author's explicit phrasing.
 - INTERPERSONAL EXCHANGE COMPRESSION: If the transcript recounts a back-and-forth spanning 3+ exchanges, compress into narrative summary preserving the conclusion without mechanical volley. Example: "And I said, 'What will you do?' And he said, 'I don't know.' And I said, 'Figure it out.'" → "When I pressed him for a plan, he had no answer—just uncertain silence that forced me to push harder."
-
-ANECDOTE vs. ILLUSTRATION HANDLING:
-- PERSONAL ANECDOTES (Author's Own Experience): First-person stories where the author is the central actor. You MAY add sensory details and emotional texture ONLY if the transcript established those elements in seed form. Example: transcript says "I was nervous" → you can write "My palms were damp as I reached for the door." FORBIDDEN: Adding plot events, other characters' dialogue, or outcomes not in the transcript.
-- THIRD-PARTY ILLUSTRATIONS (Historical Figures, Other People): ZERO expansion allowed. Reproduce exactly what the speaker said. If they said "Moses doubted at the burning bush," you write that—do NOT add "Moses stepped back, fear gripping his chest." ATTRIBUTION LOCK: Keep named sources verbatim; keep vague sources vague.
-- VERIFICATION: Before expanding any story detail, ask: (1) Is this the author's personal story? (2) Did the transcript establish this seed? (3) If I removed this detail, would the point still be clear? If #1 is no, or #2 is no, or #3 is yes—delete the expansion.
 `;
 
 const AUDIENCE_PATTERNS = [
