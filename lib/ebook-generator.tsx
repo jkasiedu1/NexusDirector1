@@ -41,8 +41,10 @@ type PdfFontSet = {
   sansBold: string;
 };
 
+type FontFamily = "template" | "georgia" | "times" | "garamond" | "palatino" | "helvetica";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function resolvePdfFonts(doc: any): PdfFontSet {
+function resolvePdfFonts(doc: any, fontFamily: FontFamily = "template"): PdfFontSet {
   const georgiaPaths = {
     regular: [
       "/usr/share/fonts/truetype/msttcorefonts/Georgia.ttf",
@@ -62,6 +64,39 @@ function resolvePdfFonts(doc: any): PdfFontSet {
   };
 
   const pickPath = (paths: string[]) => paths.find((path) => existsSync(path));
+  
+  // Force specific font family if requested
+  if (fontFamily === "times") {
+    return {
+      serif: "Times-Roman",
+      serifItalic: "Times-Italic",
+      serifBold: "Times-Bold",
+      sans: "Helvetica",
+      sansBold: "Helvetica-Bold",
+    };
+  }
+  
+  if (fontFamily === "helvetica") {
+    return {
+      serif: "Helvetica",
+      serifItalic: "Helvetica-Oblique",
+      serifBold: "Helvetica-Bold",
+      sans: "Helvetica",
+      sansBold: "Helvetica-Bold",
+    };
+  }
+  
+  if (fontFamily === "palatino") {
+    return {
+      serif: "Palatino-Roman",
+      serifItalic: "Palatino-Italic",
+      serifBold: "Palatino-Bold",
+      sans: "Helvetica",
+      sansBold: "Helvetica-Bold",
+    };
+  }
+  
+  // For "georgia", "garamond", or "template", try Georgia first (best quality)
   const regular = pickPath(georgiaPaths.regular);
   const italic = pickPath(georgiaPaths.italic);
   const bold = pickPath(georgiaPaths.bold);
@@ -79,6 +114,7 @@ function resolvePdfFonts(doc: any): PdfFontSet {
     };
   }
 
+  // Fallback to Times if Georgia not found
   return {
     serif: "Times-Roman",
     serifItalic: "Times-Italic",
@@ -217,6 +253,25 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     right:  trimSpec.margins.right  + bleedOffset,
   };
   const adjustedBodyFontSize = tpl.bodyFontSize + trimSpec.bodyFontSizeAdjust;
+  
+  // Apply font size scaling to all template font sizes
+  const scaledTpl = {
+    ...effectiveTpl,
+    bodyFontSize: effectiveTpl.bodyFontSize * fontSizeScale,
+    bodyLineGap: effectiveTpl.bodyLineGap * fontSizeScale,
+    paragraphGap: effectiveTpl.paragraphGap * fontSizeScale,
+    paragraphIndent: effectiveTpl.paragraphIndent * fontSizeScale,
+    chapterLabelSize: effectiveTpl.chapterLabelSize * fontSizeScale,
+    chapterTitleSize: effectiveTpl.chapterTitleSize * fontSizeScale,
+    sectionSize: effectiveTpl.sectionSize * fontSizeScale,
+    matterTitleSize: effectiveTpl.matterTitleSize * fontSizeScale,
+    titlePageTitleSize: effectiveTpl.titlePageTitleSize * fontSizeScale,
+    titlePageSubtitleSize: effectiveTpl.titlePageSubtitleSize * fontSizeScale,
+    titlePageAuthorSize: effectiveTpl.titlePageAuthorSize * fontSizeScale,
+    scriptureIndent: effectiveTpl.scriptureIndent * fontSizeScale,
+    scriptureFontSize: effectiveTpl.scriptureFontSize * fontSizeScale,
+  };
+  const adjustedBodyFontSizeScaled = adjustedBodyFontSize * fontSizeScale;
 
   // Pre-compute fixed layout values (avoids reliance on doc.page inside event handlers)
   // Gutter/outside margins are relative to the content area (inside bleed offset).
@@ -433,7 +488,7 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Copyright page (page 4, verso — back of title page) ──────────────────
     doc.addPage();
     doc.x = doc.page.margins.left;
-    writeCopyrightPage(doc, manifest, fonts, effectiveTpl);
+    writeCopyrightPage(doc, manifest, fonts, scaledTpl);
 
     // ── Table of Contents placeholder (page 5, recto) ─────────────────────────
     // Content is filled in the second pass once all page numbers are known.
@@ -444,48 +499,48 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Preface (recto-forced) — skip if empty ────────────────────────────────
     if (manifest.frontMatter.preface && manifest.frontMatter.preface.trim().length > 0) {
       forceNextRecto();
-      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     // ── Introduction (recto-forced) ───────────────────────────────────────────
     forceNextRecto();
-    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
 
     // ── Chapter body pages (each recto-forced) ────────────────────────────────
     for (const chapter of manifest.chapters) {
       forceNextRecto();
       currentChapterTitle = chapter.title;
       nextIsOpener = true;
-      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     // ── Back matter (each section recto-forced) ───────────────────────────────
     forceNextRecto();
     currentChapterTitle = "Conclusion";
-    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
 
     if (manifest.frontMatter.aboutAuthor) {
       forceNextRecto();
       currentChapterTitle = "About the Author";
-      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     if ((manifest.frontMatter.resourcesList ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Resources";
-      writeResources(doc, manifest.frontMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writeResources(doc, manifest.frontMatter, fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     if (manifest.backMatter && (manifest.backMatter.glossary ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Glossary";
-      writeGlossary(doc, manifest.backMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writeGlossary(doc, manifest.backMatter, fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     if (manifest.backMatter && (manifest.backMatter.readingGroupGuide ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Reading Group Guide";
-      writeReadingGroupGuide(doc, manifest.backMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
+      writeReadingGroupGuide(doc, manifest.backMatter, fonts, scaledTpl, sectionOrnament, adjustedBodyFontSizeScaled);
     }
 
     // ── Second pass ───────────────────────────────────────────────────────────

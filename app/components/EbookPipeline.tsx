@@ -937,6 +937,8 @@ type PrintSpecType = {
   frontMatterNumbering?: "arabic" | "roman" | "none";
   sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
   bodyTextAlign?: "template" | "left" | "right" | "center" | "justify";
+  bodyFontFamily?: "template" | "georgia" | "times" | "garamond" | "palatino" | "helvetica";
+  fontSizeScale?: number;
 };
 
 function PrintSpecPanel({
@@ -946,6 +948,8 @@ function PrintSpecPanel({
   frontMatterNumbering = "arabic",
   sectionOrnament = "rule",
   bodyTextAlign = "template",
+  bodyFontFamily = "template",
+  fontSizeScale = 1.0,
   onChange,
 }: {
   trimSize: "6x9" | "5.5x8.5" | "5x8";
@@ -954,6 +958,8 @@ function PrintSpecPanel({
   frontMatterNumbering?: "arabic" | "roman" | "none";
   sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
   bodyTextAlign?: "template" | "left" | "right" | "center" | "justify";
+  bodyFontFamily?: "template" | "georgia" | "times" | "garamond" | "palatino" | "helvetica";
+  fontSizeScale?: number;
   onChange: (spec: PrintSpecType) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -998,7 +1004,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize: opt.value, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
+                  onClick={() => onChange({ trimSize: opt.value, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign, bodyFontFamily, fontSizeScale })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     trimSize === opt.value
@@ -1026,7 +1032,7 @@ function PrintSpecPanel({
               type="button"
               role="switch"
               aria-checked={runningHeaders}
-              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
+              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign, bodyFontFamily, fontSizeScale })}
               className={[
                 "relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200",
                 runningHeaders ? "bg-cyan-500" : "bg-slate-600",
@@ -1051,7 +1057,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle: opt.value, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle: opt.value, frontMatterNumbering, sectionOrnament, bodyTextAlign, bodyFontFamily, fontSizeScale })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     folioStyle === opt.value
@@ -1078,7 +1084,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering: opt.value, sectionOrnament, bodyTextAlign })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering: opt.value, sectionOrnament, bodyTextAlign, bodyFontFamily, fontSizeScale })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     frontMatterNumbering === opt.value
@@ -1107,7 +1113,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament: opt.value, bodyTextAlign })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament: opt.value, bodyTextAlign, bodyFontFamily, fontSizeScale })}
                   className={[
                     "flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-all min-h-[56px]",
                     sectionOrnament === opt.value
@@ -1136,7 +1142,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign: opt.value })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign: opt.value, bodyFontFamily, fontSizeScale })}
                   className={[
                     "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 transition-all min-h-[72px]",
                     bodyTextAlign === opt.value
@@ -1152,10 +1158,69 @@ function PrintSpecPanel({
             </div>
           </div>
 
+          {/* Font Family */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Font Family</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "template" as const, label: "Template", sub: "Georgia / Times", family: "system-ui" },
+                { value: "georgia" as const, label: "Georgia", sub: "Modern serif", family: "Georgia, serif" },
+                { value: "times" as const, label: "Times", sub: "Classic serif", family: "Times New Roman, serif" },
+                { value: "garamond" as const, label: "Garamond", sub: "Renaissance", family: "Garamond, serif" },
+                { value: "palatino" as const, label: "Palatino", sub: "Calligraphic", family: "Palatino, serif" },
+                { value: "helvetica" as const, label: "Helvetica", sub: "Swiss sans", family: "Helvetica, sans-serif" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign, bodyFontFamily: opt.value, fontSizeScale })}
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-all min-h-[68px]",
+                    bodyFontFamily === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-base font-semibold ${bodyFontFamily === opt.value ? "text-cyan-300" : "text-slate-200"}`} style={{ fontFamily: opt.family }}>{opt.label}</span>
+                  <span className="text-[9px] text-slate-500 text-center leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Size Scale */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Font Size Scale</label>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                { value: 0.8, label: "80%", sub: "Compact" },
+                { value: 0.9, label: "90%", sub: "Small" },
+                { value: 1.0, label: "100%", sub: "Default" },
+                { value: 1.1, label: "110%", sub: "Large" },
+                { value: 1.2, label: "120%", sub: "XL" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign, bodyFontFamily, fontSizeScale: opt.value })}
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 transition-all min-h-[64px]",
+                    fontSizeScale === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-sm font-semibold ${fontSizeScale === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
+                  <span className="text-[9px] text-slate-500 text-center leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Standards badge */}
           <div className="rounded-xl border border-slate-700/30 bg-slate-800/20 px-4 py-3 text-[10px] text-slate-500 leading-relaxed space-y-1">
             <p className="font-semibold text-slate-400">International Premium Print Standards Applied</p>
-            <p>· Body text: Georgia {trimSize === "6x9" ? "11pt" : "10.5pt"} · Leading: {trimSize === "6x9" ? "14pt" : "13.5pt"} · {bodyTextAlign === "template" ? "Template alignment" : bodyTextAlign === "justify" ? "Justified" : bodyTextAlign === "left" ? "Left-aligned" : bodyTextAlign === "right" ? "Right-aligned" : "Centered"}</p>
+            <p>· Body text: {bodyFontFamily === "template" ? "Georgia/Times" : bodyFontFamily === "georgia" ? "Georgia" : bodyFontFamily === "times" ? "Times" : bodyFontFamily === "palatino" ? "Palatino" : bodyFontFamily === "helvetica" ? "Helvetica" : "Garamond"} at {Math.round((trimSize === "6x9" ? 11 : 10.5) * (fontSizeScale ?? 1.0))}pt ({Math.round((fontSizeScale ?? 1.0) * 100)}%) · Leading: {Math.round((trimSize === "6x9" ? 14 : 13.5) * (fontSizeScale ?? 1.0))}pt · {bodyTextAlign === "template" ? "Template alignment" : bodyTextAlign === "justify" ? "Justified" : bodyTextAlign === "left" ? "Left-aligned" : bodyTextAlign === "right" ? "Right-aligned" : "Centered"}</p>
             <p>· Scripture: full italic block · accent bar · right-aligned citation with translation badge</p>
             <p>· Non-scripture quote: roman block · em-dash attribution · no accent bar</p>
             <p>· Chapter-opening epigraph: centered · distinct from body · translation shown</p>
@@ -1728,6 +1793,8 @@ export function EbookPipeline({
     frontMatterNumbering: "arabic",
     sectionOrnament: "rule",
     bodyTextAlign: "template",
+    bodyFontFamily: "template",
+    fontSizeScale: 1.0,
   });
   const [error, setError] = useState<string | null>(null);
   const [signalFilterState, setSignalFilterState] = useState<SignalFilterState>("idle");
@@ -4182,6 +4249,8 @@ export function EbookPipeline({
               frontMatterNumbering={printSpec.frontMatterNumbering}
               sectionOrnament={printSpec.sectionOrnament}
               bodyTextAlign={printSpec.bodyTextAlign}
+              bodyFontFamily={printSpec.bodyFontFamily}
+              fontSizeScale={printSpec.fontSizeScale}
               onChange={setPrintSpec}
             />
 

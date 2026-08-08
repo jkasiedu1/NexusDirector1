@@ -58,7 +58,7 @@ function buildManifest(p: EbookProject): EbookManifest {
     allQuotes: job.contentMap?.allQuotes ?? [],
     generatedAt: job.updatedAt,
     selectedTemplate: "devotional",
-    printSpec: { trimSize: "6x9", runningHeaders: true, bleed: false, cropMarks: false, editableProof: false, folioStyle: "center", frontMatterNumbering: "arabic", sectionOrnament: "rule", bodyTextAlign: "template" },
+    printSpec: { trimSize: "6x9", runningHeaders: true, bleed: false, cropMarks: false, editableProof: false, folioStyle: "center", frontMatterNumbering: "arabic", sectionOrnament: "rule", bodyTextAlign: "template", bodyFontFamily: "template", fontSizeScale: 1.0 },
     coverImageUrl: p.coverImageUrl ?? null,
     authorImageUrl: p.authorImageUrl ?? null,
   };

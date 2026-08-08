@@ -358,6 +358,25 @@ export const PrintSpecSchema = z.object({
    * - "justify": fill line edge-to-edge (traditional book typography)
    */
   bodyTextAlign: z.enum(["template", "left", "right", "center", "justify"]).default("template"),
+  /**
+   * Body font family override:
+   * - "template": use the system's default font (Georgia with Times fallback)
+   * - "georgia": Georgia (elegant, readable, modern serif)
+   * - "times": Times New Roman (classic, traditional book font)
+   * - "garamond": Garamond-like fallback (Renaissance, elegant)
+   * - "palatino": Palatino (calligraphic, refined serif)
+   * - "helvetica": Helvetica (Swiss, clean sans-serif)
+   */
+  bodyFontFamily: z.enum(["template", "georgia", "times", "garamond", "palatino", "helvetica"]).default("template"),
+  /**
+   * Font size multiplier (applies to all text sizes):
+   * - 0.8 (80%) = Compact
+   * - 0.9 (90%) = Small
+   * - 1.0 (100%) = Template default (recommended)
+   * - 1.1 (110%) = Large
+   * - 1.2 (120%) = Extra Large
+   */
+  fontSizeScale: z.number().min(0.7).max(1.5).default(1.0),
 });
 
 export const EbookManifestSchema = z.object({
