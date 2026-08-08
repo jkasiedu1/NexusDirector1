@@ -1155,7 +1155,7 @@ function PrintSpecPanel({
           {/* Standards badge */}
           <div className="rounded-xl border border-slate-700/30 bg-slate-800/20 px-4 py-3 text-[10px] text-slate-500 leading-relaxed space-y-1">
             <p className="font-semibold text-slate-400">International Premium Print Standards Applied</p>
-            <p>· Body text: Georgia {trimSize === "6x9" ? "11pt" : "10.5pt"} · Leading: {trimSize === "6x9" ? "14pt" : "13.5pt"} · Justified alignment</p>
+            <p>· Body text: Georgia {trimSize === "6x9" ? "11pt" : "10.5pt"} · Leading: {trimSize === "6x9" ? "14pt" : "13.5pt"} · {bodyTextAlign === "template" ? "Template alignment" : bodyTextAlign === "justify" ? "Justified" : bodyTextAlign === "left" ? "Left-aligned" : bodyTextAlign === "right" ? "Right-aligned" : "Centered"}</p>
             <p>· Scripture: full italic block · accent bar · right-aligned citation with translation badge</p>
             <p>· Non-scripture quote: roman block · em-dash attribution · no accent bar</p>
             <p>· Chapter-opening epigraph: centered · distinct from body · translation shown</p>
