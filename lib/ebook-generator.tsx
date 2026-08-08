@@ -878,9 +878,15 @@ function parseMarkdownBlockquote(paragraph: string): { text: string; reference?:
 }
 
 function writeScriptureBlock(doc: any, quote: ScriptureQuote, fonts: PdfFontSet, tpl: BookTemplateConfig) {
-  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const textX = doc.page.margins.left + tpl.scriptureIndent;
-  const textWidth = contentWidth - tpl.scriptureIndent * 2;
+  // Helper to calculate indent/width based on current page margins
+  const getScriptureLayout = () => {
+    const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const textX = doc.page.margins.left + tpl.scriptureIndent;
+    const textWidth = contentWidth - tpl.scriptureIndent * 2;
+    return { contentWidth, textX, textWidth };
+  };
+
+  let layout = getScriptureLayout();
 
   // Clean the text: strip all markdown blockquote markers and other artifacts
   const cleanedText = quote.text
@@ -901,13 +907,17 @@ function writeScriptureBlock(doc: any, quote: ScriptureQuote, fonts: PdfFontSet,
   if (remaining < estimatedH && estimatedH <= pageContentH * 0.85) {
     doc.addPage();
     doc.x = doc.page.margins.left;
+    layout = getScriptureLayout(); // Recalculate for new page
   }
 
   doc.moveDown(0.75);
 
   // When PDFKit auto-breaks to a new page mid-block it resets doc.x to the left margin.
-  // This listener restores the scripture indent so the continuation is still indented.
-  const _restoreIndent = () => { doc.x = textX; };
+  // This listener restores the scripture indent and recalculates layout for the new page.
+  const _restoreIndent = () => { 
+    layout = getScriptureLayout();
+    doc.x = layout.textX;
+  };
   doc.on("pageAdded", _restoreIndent);
 
   // Verse text — indented italic, no sidebar
@@ -916,7 +926,7 @@ function writeScriptureBlock(doc: any, quote: ScriptureQuote, fonts: PdfFontSet,
       .fontSize(tpl.scriptureFontSize)
       .font(fonts.serifItalic)
       .fillColor("#1a1a1a")
-      .text(line.trim(), textX, undefined, { width: textWidth, lineGap: 5, align: "left", continued: false });
+      .text(line.trim(), layout.textX, undefined, { width: layout.textWidth, lineGap: 5, align: "left", continued: false });
     if (i < verseLines.length - 1) doc.moveDown(0.1);
   });
 
@@ -925,12 +935,14 @@ function writeScriptureBlock(doc: any, quote: ScriptureQuote, fonts: PdfFontSet,
   // Reference line: em-dash · reference · optional translation — right-aligned, accent colour
   const reference = formatScriptureReference(quote.reference, quote.translation);
   if (reference) {
+    // Recalculate layout in case reference is on a new page
+    layout = getScriptureLayout();
     doc
       .moveDown(0.25)
       .fontSize(tpl.scriptureFontSize - 1.5)
       .font(fonts.serifBold)
       .fillColor(tpl.accentColor)
-      .text(reference, doc.page.margins.left, undefined, { align: "right", width: contentWidth });
+      .text(reference, doc.page.margins.left, undefined, { align: "right", width: layout.contentWidth });
   }
 
   doc.moveDown(0.75);
