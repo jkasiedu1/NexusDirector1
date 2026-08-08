@@ -349,6 +349,15 @@ export const PrintSpecSchema = z.object({
    * - "none": blank space only
    */
   sectionOrnament: z.enum(["rule", "fleuron", "asterism", "dinkus", "none"]).default("rule"),
+  /**
+   * Body text alignment override (overrides template default):
+   * - "template": use the template's default bodyAlign setting (recommended)
+   * - "left": ragged right edge (modern, scannable, conversational)
+   * - "right": ragged left edge (rare, artistic layouts only)
+   * - "center": centered text (special use: poetry, quotations)
+   * - "justify": fill line edge-to-edge (traditional book typography)
+   */
+  bodyTextAlign: z.enum(["template", "left", "right", "center", "justify"]).default("template"),
 });
 
 export const EbookManifestSchema = z.object({

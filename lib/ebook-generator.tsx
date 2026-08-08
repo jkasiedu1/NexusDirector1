@@ -182,6 +182,16 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
   const showRunningHeaders = resolvedPrintSpec.runningHeaders !== false && tpl.runningHeaders;
   const sectionOrnament = resolvedPrintSpec.sectionOrnament ?? "rule";
 
+  // ── Body text alignment override ──────────────────────────────────────────
+  // If user specifies bodyTextAlign, override the template's default bodyAlign.
+  // "template" means use the template's natural bodyAlign setting.
+  const bodyTextAlignOverride = resolvedPrintSpec.bodyTextAlign ?? "template";
+  const effectiveBodyAlign: "left" | "justify" | "right" | "center" = 
+    bodyTextAlignOverride === "template" ? tpl.bodyAlign : bodyTextAlignOverride;
+  
+  // Create an effective template with the alignment override applied
+  const effectiveTpl = { ...tpl, bodyAlign: effectiveBodyAlign };
+
   // editableProof: author-review PDF — PDF 1.7, no PDF/X-1a, no bleed/crop marks,
   // fully text-based so Acrobat's Edit PDF tool can make corrections.
   const isEditableProof = resolvedPrintSpec.editableProof === true;
@@ -423,7 +433,7 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Copyright page (page 4, verso — back of title page) ──────────────────
     doc.addPage();
     doc.x = doc.page.margins.left;
-    writeCopyrightPage(doc, manifest, fonts, tpl);
+    writeCopyrightPage(doc, manifest, fonts, effectiveTpl);
 
     // ── Table of Contents placeholder (page 5, recto) ─────────────────────────
     // Content is filled in the second pass once all page numbers are known.
@@ -434,48 +444,48 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     // ── Preface (recto-forced) — skip if empty ────────────────────────────────
     if (manifest.frontMatter.preface && manifest.frontMatter.preface.trim().length > 0) {
       forceNextRecto();
-      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writePreface(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Introduction (recto-forced) ───────────────────────────────────────────
     forceNextRecto();
-    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+    writeIntroduction(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
 
     // ── Chapter body pages (each recto-forced) ────────────────────────────────
     for (const chapter of manifest.chapters) {
       forceNextRecto();
       currentChapterTitle = chapter.title;
       nextIsOpener = true;
-      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writeChapter(doc, chapter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Back matter (each section recto-forced) ───────────────────────────────
     forceNextRecto();
     currentChapterTitle = "Conclusion";
-    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+    writeConclusion(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
 
     if (manifest.frontMatter.aboutAuthor) {
       forceNextRecto();
       currentChapterTitle = "About the Author";
-      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writeAboutAuthor(doc, manifest.frontMatter, manifest.allQuotes ?? [], fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if ((manifest.frontMatter.resourcesList ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Resources";
-      writeResources(doc, manifest.frontMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writeResources(doc, manifest.frontMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if (manifest.backMatter && (manifest.backMatter.glossary ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Glossary";
-      writeGlossary(doc, manifest.backMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writeGlossary(doc, manifest.backMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     if (manifest.backMatter && (manifest.backMatter.readingGroupGuide ?? []).length > 0) {
       forceNextRecto();
       currentChapterTitle = "Reading Group Guide";
-      writeReadingGroupGuide(doc, manifest.backMatter, fonts, tpl, sectionOrnament, adjustedBodyFontSize);
+      writeReadingGroupGuide(doc, manifest.backMatter, fonts, effectiveTpl, sectionOrnament, adjustedBodyFontSize);
     }
 
     // ── Second pass ───────────────────────────────────────────────────────────

@@ -936,6 +936,7 @@ type PrintSpecType = {
   folioStyle?: "center" | "outside" | "none-on-openers";
   frontMatterNumbering?: "arabic" | "roman" | "none";
   sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
+  bodyTextAlign?: "template" | "left" | "right" | "center" | "justify";
 };
 
 function PrintSpecPanel({
@@ -944,6 +945,7 @@ function PrintSpecPanel({
   folioStyle = "center",
   frontMatterNumbering = "arabic",
   sectionOrnament = "rule",
+  bodyTextAlign = "template",
   onChange,
 }: {
   trimSize: "6x9" | "5.5x8.5" | "5x8";
@@ -951,6 +953,7 @@ function PrintSpecPanel({
   folioStyle?: "center" | "outside" | "none-on-openers";
   frontMatterNumbering?: "arabic" | "roman" | "none";
   sectionOrnament?: "rule" | "fleuron" | "asterism" | "dinkus" | "none";
+  bodyTextAlign?: "template" | "left" | "right" | "center" | "justify";
   onChange: (spec: PrintSpecType) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -995,7 +998,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize: opt.value, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament })}
+                  onClick={() => onChange({ trimSize: opt.value, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     trimSize === opt.value
@@ -1023,7 +1026,7 @@ function PrintSpecPanel({
               type="button"
               role="switch"
               aria-checked={runningHeaders}
-              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament })}
+              onClick={() => onChange({ trimSize, runningHeaders: !runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
               className={[
                 "relative flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200",
                 runningHeaders ? "bg-cyan-500" : "bg-slate-600",
@@ -1048,7 +1051,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle: opt.value, frontMatterNumbering, sectionOrnament })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle: opt.value, frontMatterNumbering, sectionOrnament, bodyTextAlign })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     folioStyle === opt.value
@@ -1075,7 +1078,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering: opt.value, sectionOrnament })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering: opt.value, sectionOrnament, bodyTextAlign })}
                   className={[
                     "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px]",
                     frontMatterNumbering === opt.value
@@ -1104,7 +1107,7 @@ function PrintSpecPanel({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament: opt.value })}
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament: opt.value, bodyTextAlign })}
                   className={[
                     "flex flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-all min-h-[56px]",
                     sectionOrnament === opt.value
@@ -1114,6 +1117,36 @@ function PrintSpecPanel({
                 >
                   <span className={`text-lg font-semibold ${sectionOrnament === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
                   <span className="text-[10px] text-slate-500 text-center leading-tight">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Body Text Alignment */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Body Text Alignment</label>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                { value: "template" as const, label: "Template", sub: "Use template default", icon: "⚙️" },
+                { value: "left" as const, label: "Left", sub: "Ragged right", icon: "◁" },
+                { value: "justify" as const, label: "Justify", sub: "Fill page", icon: "▭" },
+                { value: "center" as const, label: "Center", sub: "Poetry style", icon: "▬" },
+                { value: "right" as const, label: "Right", sub: "Ragged left", icon: "▷" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ trimSize, runningHeaders, folioStyle, frontMatterNumbering, sectionOrnament, bodyTextAlign: opt.value })}
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 transition-all min-h-[72px]",
+                    bodyTextAlign === opt.value
+                      ? "border-cyan-500/50 bg-cyan-500/10"
+                      : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <span className={`text-xl ${bodyTextAlign === opt.value ? "text-cyan-300" : "text-slate-300"}`}>{opt.icon}</span>
+                  <span className={`text-xs font-semibold ${bodyTextAlign === opt.value ? "text-cyan-300" : "text-slate-200"}`}>{opt.label}</span>
+                  <span className="text-[9px] text-slate-500 text-center leading-tight">{opt.sub}</span>
                 </button>
               ))}
             </div>
@@ -1694,6 +1727,7 @@ export function EbookPipeline({
     folioStyle: "center",
     frontMatterNumbering: "arabic",
     sectionOrnament: "rule",
+    bodyTextAlign: "template",
   });
   const [error, setError] = useState<string | null>(null);
   const [signalFilterState, setSignalFilterState] = useState<SignalFilterState>("idle");
@@ -4147,6 +4181,7 @@ export function EbookPipeline({
               folioStyle={printSpec.folioStyle}
               frontMatterNumbering={printSpec.frontMatterNumbering}
               sectionOrnament={printSpec.sectionOrnament}
+              bodyTextAlign={printSpec.bodyTextAlign}
               onChange={setPrintSpec}
             />
 
