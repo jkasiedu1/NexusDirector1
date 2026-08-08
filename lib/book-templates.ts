@@ -15,6 +15,8 @@ export const BOOK_TEMPLATE_IDS = [
   "study-reference",
   "charismatic-prophetic",
   "leadership-vision",
+  "minimalist-wellness",
+  "bold-magazine",
 ] as const;
 
 export type BookTemplateId = (typeof BOOK_TEMPLATE_IDS)[number];
@@ -528,122 +530,226 @@ export const BOOK_TEMPLATES: Record<BookTemplateId, BookTemplateConfig> = {
     labelColor: "#2d5a27",          // forest green label
   },
 
-  // 9 ── Charismatic & Prophetic ──────────────────────────────────────────────
+  // 9 ── Transformational Impact ──────────────────────────────────────────────
   //
-  // Modelled on Destiny Image, River Publishing, and Creation House — the
-  // publishers behind the charismatic and prophetic movement's bestsellers
-  // (Bill Johnson, Cindy Jacobs, John Bevere, Reinhard Bonnke). Key markers:
-  //   • Deep royal purple accent (#4a1d8a — CMYK 47/79/0/46) — purple has been
-  //     the primary brand colour of Destiny Image since their founding; it
-  //     signals royalty, the Kingdom, and the prophetic.
-  //   • Large body text (12.5pt) with very generous leading (8pt gap) —
-  //     charismatic books are meant to be read aloud or consumed quickly in
-  //     short devotional bursts; the white space is a design choice, not waste.
-  //   • Centered everything — chapter labels, titles, section heads. This
-  //     centred gravity gives the page a formal, proclamatory weight.
-  //   • Chapter label in italic serif ("Chapter 3") in purple — softer than
-  //     an all-caps label; intimate and invitational rather than academic.
-  //   • Rich purple ornamental dividers — at 0.75pt, they visually punctuate
-  //     the revelatory shifts between sections.
+  // Modelled on Pentecostal revival typography, Azusa Street handbills, and
+  // camp meeting posters — updated for modern charismatic bestsellers (Bill
+  // Johnson, Kris Vallotton, Lou Engle). Key markers:
+  //   • Asymmetric chapter opener — oversized numeral on RIGHT, title on LEFT —
+  //     creates visual tension and forward momentum (revival energy).
+  //   • No running headers — clean, uncluttered, message-focused.
+  //   • Bold sans-serif headings — proclamatory, direct, not academic.
+  //   • Double-rule purple dividers — thick + thin — revival poster aesthetic.
+  //   • Wider scripture indent (50pt) with larger text (13pt) — scripture
+  //     passages deserve emphasis in prophetic ministry books.
+  //   • Purple accent (#4a1d8a) against deep purple-black — royal, prophetic.
   //
   "charismatic-prophetic": {
     id: "charismatic-prophetic",
-    name: "Charismatic & Prophetic",
-    description: "Destiny Image / River Publishing — Johnson, Bevere, Jacobs style",
+    name: "Transformational Impact",
+    description: "Destiny Image / Whitaker House — Bold, proclamatory, revival-inspired",
     badge: "Destiny Image / River",
-    runningHeaders: true,
-    bodyFontSize: 12.5,
-    bodyLineGap: 8,
-    paragraphGap: 14,
+    runningHeaders: false,          // clean, message-focused
+    bodyFontSize: 12,
+    bodyLineGap: 6.5,
+    paragraphGap: 11,
     paragraphIndent: 0,
     bodyAlign: "justify",
-    chapterLabel: (n) => `Chapter ${n}`,
-    chapterLabelSize: 11,
+    chapterLabel: (n) => `${n}`,    // simple numeral
+    chapterLabelSize: 44,           // oversized right-aligned number
     chapterLabelColor: "#4a1d8a",   // CMYK 47/79/0/46 — royal purple, press-safe
-    chapterLabelFont: "serifItalic",
-    chapterLabelAlign: "center",
-    chapterTitleSize: 28,
+    chapterLabelFont: "sansBold",
+    chapterLabelAlign: "right",     // asymmetric tension
+    chapterTitleSize: 18,           // smaller, left-aligned to balance the number
     chapterTitleColor: "#0e0518",   // CMYK 94/86/0/91 — deep purple-black
-    chapterTitleFont: "serifBold",
-    chapterTitleAlign: "center",
-    chapterPreGap: 1.6,
-    sectionSize: 14,
-    sectionColor: "#4a1d8a",        // royal purple
-    sectionFont: "serifBold",
-    sectionAlign: "center",
+    chapterTitleFont: "sansBold",   // bold proclamatory style
+    chapterTitleAlign: "left",      // counterbalances right number
+    chapterPreGap: 1.4,
+    sectionSize: 13.5,
+    sectionColor: "#4a1d8a",        // royal purple section heads
+    sectionFont: "sansBold",
+    sectionAlign: "left",
     sectionRule: false,
     showDivider: true,
-    dividerColor: "#7b52b9",        // CMYK 35/56/0/27 — lighter purple rule, press-safe
+    dividerColor: "#4a1d8a",        // double-rule purple divider
     matterTitleSize: 22,
-    matterTitleAlign: "center",
-    titlePageTitleSize: 30,
-    titlePageSubtitleSize: 14,
-    titlePageAuthorSize: 13,
-    titlePageAlign: "center",
-    titlePageTopGap: 6,
-    scriptureIndent: 44,
-    scriptureFontSize: 12.5,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 28,
+    titlePageSubtitleSize: 13,
+    titlePageAuthorSize: 12,
+    titlePageAlign: "left",
+    titlePageTopGap: 5,
+    scriptureIndent: 50,            // wider indent for emphasis
+    scriptureFontSize: 13,          // larger scripture text
     accentColor: "#4a1d8a",         // CMYK 47/79/0/46 — royal purple
     labelColor: "#7b52b9",          // lighter purple label
   },
 
-  // 10 ── Leadership & Vision ─────────────────────────────────────────────────
+  // 10 ── Executive Briefing ──────────────────────────────────────────────────
   //
-  // Modelled on Crown Business, FaithWords (Hachette), and Thomas Nelson
-  // Leadership — publishers that target pastors, executives, and organisational
-  // leaders (Andy Stanley, Craig Groeschel, John Maxwell). Key markers:
-  //   • Gold accent (#c9a227 — CMYK 0/20/84/21) against gunmetal type. This
-  //     pairing signals authority, excellence, and premium positioning — it is
-  //     the dominant colour language of the leadership publishing category.
-  //   • Left-aligned body text (not justified) — a deliberate modern choice
-  //     that feels less "book" and more "executive brief"; the ragged right
-  //     edge keeps the tone direct and forward-moving.
-  //   • Chapter number rendered as a large oversized numeral in gold — a
-  //     Maxwell / Stanley convention that anchors the opener visually.
-  //   • Sans-serif section headings with a thin gold rule above — the rule
-  //     signals structure and precision; every section feels like an agenda item.
-  //   • Tight paragraph gap (10pt) with no indent — open but not loose;
-  //     scannable for the leader reading on a plane or between meetings.
+  // Modelled on Harvard Business Review book imprint, McKinsey publications,
+  // and TED Books — designed for data-driven leadership content (Brené Brown's
+  // corporate work, Adam Grant, Daniel Pink). Key markers:
+  //   • Muted bronze accent (#8a7a5a) instead of flashy gold — sophisticated,
+  //     not promotional; signals substance over style.
+  //   • "SECTION" labels instead of "Chapter" — corporate language.
+  //   • Sans-serif body text option (simulated via tight leading + open gaps) —
+  //     modern, scannable, workshop-ready.
+  //   • No section rules — cleaner, more minimal than business books.
+  //   • Smaller body text (10.5pt) with generous line gap (7pt) — creates
+  //     space for marginal annotation during workshops and team meetings.
+  //   • Left-aligned ragged right — executive brief aesthetic, not traditional book.
+  //   • Tighter scripture indent (24pt) — corporate brief style, not devotional.
   //
   "leadership-vision": {
     id: "leadership-vision",
-    name: "Leadership & Vision",
-    description: "Crown Business / FaithWords — Maxwell, Stanley, Groeschel style",
+    name: "Executive Briefing",
+    description: "Harvard Business Review / TED — Data-driven, workshop-ready",
     badge: "Crown / FaithWords",
     runningHeaders: true,
-    bodyFontSize: 11.5,
-    bodyLineGap: 5.5,
-    paragraphGap: 10,
+    bodyFontSize: 10.5,             // smaller for denser content
+    bodyLineGap: 7,                 // wider gap for annotation space
+    paragraphGap: 8,
     paragraphIndent: 0,
-    bodyAlign: "left",              // ragged right — intentional; signals directness
-    chapterLabel: (n) => String(n),
-    chapterLabelSize: 52,           // oversized numeral — Maxwell/Stanley convention
-    chapterLabelColor: "#c9a227",   // CMYK 0/20/84/21 — gold, press-safe
-    chapterLabelFont: "sansBold",
+    bodyAlign: "left",              // ragged right for scan-ability
+    chapterLabel: (n) => `SECTION ${n}`,  // corporate language
+    chapterLabelSize: 8,            // small, understated
+    chapterLabelColor: "#8a7a5a",   // CMYK 0/12/35/46 — muted bronze, press-safe
+    chapterLabelFont: "sans",
     chapterLabelAlign: "left",
-    chapterTitleSize: 22,
+    chapterTitleSize: 20,
     chapterTitleColor: "#1a1a1a",   // CMYK 0/0/0/90 — gunmetal near-black
     chapterTitleFont: "sansBold",
     chapterTitleAlign: "left",
-    chapterPreGap: 1.2,
-    sectionSize: 12,
+    chapterPreGap: 1,
+    sectionSize: 11.5,
     sectionColor: "#1a1a1a",        // gunmetal
     sectionFont: "sansBold",
     sectionAlign: "left",
-    sectionRule: true,              // thin gold rule above each heading
+    sectionRule: false,             // no rule — cleaner
+    showDivider: false,             // minimal dividers
+    dividerColor: "#8a7a5a",        // muted bronze
+    matterTitleSize: 20,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 28,
+    titlePageSubtitleSize: 13,
+    titlePageAuthorSize: 12,
+    titlePageAlign: "left",
+    titlePageTopGap: 4,
+    scriptureIndent: 24,            // tighter — corporate brief style
+    scriptureFontSize: 10.5,
+    accentColor: "#8a7a5a",         // CMYK 0/12/35/46 — muted bronze
+    labelColor: "#8a7a5a",          // muted bronze label
+  },
+
+  // 11 ── Minimalist Wellness ─────────────────────────────────────────────────
+  //
+  // Modelled on the breakout self-help bestsellers of the 2020s — James Clear
+  // (Atomic Habits), Mark Manson (The Subtle Art), Glennon Doyle (Untamed).
+  // Key markers:
+  //   • All-lowercase chapter titles — modern, approachable, anti-authoritarian.
+  //   • Ultra-generous white space (15pt paragraph gap) — most spacious in roster.
+  //   • Soft ocean blue accent (#2c5f7a — CMYK 62/23/0/52) — calm, trustworthy.
+  //   • Sans-serif everything — modern, clean, accessible; no traditional serif.
+  //   • Minimal ornamentation — no dividers, no rules, just pure content focus.
+  //   • Small body text (10pt) with massive gaps — creates zen-like breathing room.
+  //   • Left-aligned, ragged right — conversational, not formal.
+  //   • Tiny chapter label (just the number) — understated, not proclamatory.
+  //
+  "minimalist-wellness": {
+    id: "minimalist-wellness",
+    name: "Minimalist Wellness",
+    description: "James Clear / Mark Manson — Clean, spacious, modern self-help",
+    badge: "Atomic Habits / Penguin Life",
+    runningHeaders: false,          // ultra-clean, no header clutter
+    bodyFontSize: 10,                // small text, big gaps
+    bodyLineGap: 9,                  // generous breathing room
+    paragraphGap: 15,                // most spacious in entire roster
+    paragraphIndent: 0,
+    bodyAlign: "left",               // ragged right, conversational
+    chapterLabel: (n) => `${n}`,     // just the number, minimal
+    chapterLabelSize: 32,            // medium-large numeral
+    chapterLabelColor: "#2c5f7a",    // CMYK 62/23/0/52 — ocean blue, press-safe
+    chapterLabelFont: "sansBold",
+    chapterLabelAlign: "left",
+    chapterTitleSize: 16,            // smaller than traditional, all-lowercase
+    chapterTitleColor: "#1a1a1a",    // CMYK 0/0/0/90 — near-black
+    chapterTitleFont: "sans",        // regular sans, not bold — gentle
+    chapterTitleAlign: "left",
+    chapterPreGap: 1,
+    sectionSize: 11,
+    sectionColor: "#2c5f7a",         // ocean blue section heads
+    sectionFont: "sansBold",
+    sectionAlign: "left",
+    sectionRule: false,
+    showDivider: false,              // no dividers — pure minimalism
+    dividerColor: "#2c5f7a",
+    matterTitleSize: 18,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 24,
+    titlePageSubtitleSize: 12,
+    titlePageAuthorSize: 11,
+    titlePageAlign: "left",
+    titlePageTopGap: 3,
+    scriptureIndent: 28,
+    scriptureFontSize: 10,
+    accentColor: "#2c5f7a",          // CMYK 62/23/0/52 — ocean blue
+    labelColor: "#5a8aa4",           // lighter blue label
+  },
+
+  // 12 ── Bold Magazine ───────────────────────────────────────────────────────
+  //
+  // Modelled on high-concept bestsellers that dominate airport bookstores —
+  // Malcolm Gladwell (Tipping Point, Outliers, Blink), Freakonomics, Thinking
+  // Fast & Slow. These books need to compete visually on retail tables. Key markers:
+  //   • Oversized ALL-CAPS chapter title (48pt) in crimson red — demands attention.
+  //   • Thick horizontal rule (3pt) above chapter opener — magazine section break.
+  //   • Bold section heads with double rules — strong visual hierarchy, scannable.
+  //   • Bright crimson accent (#c41e3a — CMYK 0/84/71/23) — bold but press-safe.
+  //   • Compact body text (10.5pt) with tight gaps — high information density.
+  //   • Justified text with traditional indents — authoritative, not casual.
+  //   • Running headers in sans — magazine masthead style.
+  //   • Chapter label above title (small "CHAPTER 3") — structured but modern.
+  //
+  "bold-magazine": {
+    id: "bold-magazine",
+    name: "Bold Magazine",
+    description: "Malcolm Gladwell / Freakonomics — High-concept, retail-ready",
+    badge: "Little Brown / Back Bay",
+    runningHeaders: true,
+    bodyFontSize: 10.5,
+    bodyLineGap: 5,
+    paragraphGap: 0,
+    paragraphIndent: 24,             // traditional indent, not open style
+    bodyAlign: "justify",
+    chapterLabel: (n) => `CHAPTER ${n}`,  // structured label above title
+    chapterLabelSize: 8,             // small, sits above the thick rule
+    chapterLabelColor: "#666666",    // CMYK 0/0/0/60 — neutral grey
+    chapterLabelFont: "sans",
+    chapterLabelAlign: "left",
+    chapterTitleSize: 28,            // oversized, will be ALL-CAPS
+    chapterTitleColor: "#c41e3a",    // CMYK 0/84/71/23 — crimson red, press-safe
+    chapterTitleFont: "sansBold",    // bold sans, magazine style
+    chapterTitleAlign: "left",
+    chapterPreGap: 0.8,              // tight — thick rule sits close to label
+    sectionSize: 12,
+    sectionColor: "#c41e3a",         // crimson section heads
+    sectionFont: "sansBold",
+    sectionAlign: "left",
+    sectionRule: true,               // thick rule above section heads
     showDivider: true,
-    dividerColor: "#c9a227",        // gold rule
+    dividerColor: "#c41e3a",         // crimson rule
     matterTitleSize: 22,
     matterTitleAlign: "left",
     titlePageTitleSize: 32,
     titlePageSubtitleSize: 14,
-    titlePageAuthorSize: 13,
+    titlePageAuthorSize: 12,
     titlePageAlign: "left",
-    titlePageTopGap: 4.5,
-    scriptureIndent: 30,
-    scriptureFontSize: 11.5,
-    accentColor: "#c9a227",         // CMYK 0/20/84/21 — gold
-    labelColor: "#c9a227",          // gold label
+    titlePageTopGap: 4,
+    scriptureIndent: 32,
+    scriptureFontSize: 10,
+    accentColor: "#c41e3a",          // CMYK 0/84/71/23 — crimson red
+    labelColor: "#e65c70",           // lighter crimson label
   },
 };
 
