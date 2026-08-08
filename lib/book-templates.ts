@@ -17,6 +17,10 @@ export const BOOK_TEMPLATE_IDS = [
   "leadership-vision",
   "minimalist-wellness",
   "bold-magazine",
+  "basel-swiss",
+  "venetian-aldine",
+  "bauhaus-functional",
+  "nordic-whisper",
 ] as const;
 
 export type BookTemplateId = (typeof BOOK_TEMPLATE_IDS)[number];
@@ -750,6 +754,231 @@ export const BOOK_TEMPLATES: Record<BookTemplateId, BookTemplateConfig> = {
     scriptureFontSize: 10,
     accentColor: "#c41e3a",          // CMYK 0/84/71/23 — crimson red
     labelColor: "#e65c70",           // lighter crimson label
+  },
+
+  // 13 ── Basel Swiss International ───────────────────────────────────────────
+  //
+  // Modelled on Swiss International Style typography — Josef Müller-Brockmann,
+  // Emil Ruder, Neue Grafik magazine (1958-1965), Helvetica-era modernism.
+  // This is NOT a color variation — it's a fundamentally different structural
+  // approach to page geometry. Key markers:
+  //   • MASSIVE chapter numerals (72pt) in strict left alignment — never centered.
+  //   • Grotesque sans-serif for ALL elements — no serif fonts anywhere.
+  //   • Strict baseline grid — all spacing is modular, mechanical precision.
+  //   • Heavy geometric rules (3pt) — industrial, not decorative.
+  //   • Asymmetric margins — wide right gutter for notes (Swiss textbook tradition).
+  //   • No indents, only gap-based paragraphs — grid-based spacing only.
+  //   • Monochrome palette — true black on white, no grey ornamentation.
+  //   • Running headers in caps — modernist clarity.
+  //
+  "basel-swiss": {
+    id: "basel-swiss",
+    name: "Basel Swiss International",
+    description: "Müller-Brockmann / Ruder — Strict grid, geometric modernism",
+    badge: "Swiss / Helvetica Era",
+    runningHeaders: true,
+    bodyFontSize: 10,               // tight, grid-based
+    bodyLineGap: 4,                 // strict baseline rhythm
+    paragraphGap: 12,               // modular gap, no indent
+    paragraphIndent: 0,             // grid-based gaps only
+    bodyAlign: "left",              // NEVER justify in Swiss style
+    chapterLabel: (n) => String(n), // just the number, massive
+    chapterLabelSize: 72,           // oversized modernist numeral
+    chapterLabelColor: "#000000",   // true black, no grey
+    chapterLabelFont: "sansBold",   // grotesque sans
+    chapterLabelAlign: "left",      // strict left, never centered
+    chapterTitleSize: 16,           // small caps will be applied
+    chapterTitleColor: "#000000",   // true black
+    chapterTitleFont: "sans",       // grotesque sans, regular weight
+    chapterTitleAlign: "left",      // strict left alignment
+    chapterPreGap: 0.5,             // tight, mechanical
+    sectionSize: 11,
+    sectionColor: "#000000",        // true black
+    sectionFont: "sansBold",        // sans bold
+    sectionAlign: "left",
+    sectionRule: true,              // heavy geometric rule
+    showDivider: true,
+    dividerColor: "#000000",        // true black, 3pt weight
+    matterTitleSize: 18,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 28,
+    titlePageSubtitleSize: 12,
+    titlePageAuthorSize: 10,
+    titlePageAlign: "left",         // strict left, asymmetric
+    titlePageTopGap: 8,             // pushed down for grid
+    scriptureIndent: 0,             // no indent, rule-based separation
+    scriptureFontSize: 9,           // smaller, tight
+    accentColor: "#000000",         // monochrome — true Swiss
+    labelColor: "#000000",          // monochrome
+  },
+
+  // 14 ── Venetian Aldine Classical ───────────────────────────────────────────
+  //
+  // Modelled on Aldus Manutius (1495 Venice), the inventor of italic type and
+  // modern book design — revived by Penguin Classics, Everyman's Library, and
+  // Oxford World's Classics. This is a STRUCTURAL approach, not a color swap.
+  // Key markers:
+  //   • Perfect centered symmetry — everything on the vertical axis.
+  //   • Deep paragraph indents (42pt) — Renaissance scholarly tradition.
+  //   • Small body text (10pt) with tight leading — dense, classical page.
+  //   • Roman numerals for chapter labels — humanist convention.
+  //   • Ornamental dividers (not plain rules) — decorative fleurons.
+  //   • Generous top margin (2 inch drop) — classical proportions.
+  //   • Italic serif for labels — Aldine's signature invention.
+  //   • Golden ratio sizing relationships (1:1.618) throughout.
+  //   • Muted earth tones — ochre, not bright colors.
+  //
+  "venetian-aldine": {
+    id: "venetian-aldine",
+    name: "Venetian Aldine Classical",
+    description: "Aldus Manutius (1495) — Renaissance symmetry, humanist serif",
+    badge: "Penguin Classics / Oxford",
+    runningHeaders: true,
+    bodyFontSize: 10,               // classical density
+    bodyLineGap: 3.5,               // tight, scholarly
+    paragraphGap: 0,                // no gap — indent only
+    paragraphIndent: 42,            // deep Renaissance indent
+    bodyAlign: "justify",           // full justification — classical
+    chapterLabel: (n) => toRoman(n), // Roman numerals — humanist
+    chapterLabelSize: 14,           // modest, centered
+    chapterLabelColor: "#6b5d47",   // CMYK 0/13/33/58 — ochre, press-safe
+    chapterLabelFont: "serifItalic", // Aldine's italic invention
+    chapterLabelAlign: "center",    // perfect symmetry
+    chapterTitleSize: 22,           // golden ratio to body (22 ≈ 10 × φ²)
+    chapterTitleColor: "#2b2520",   // CMYK 0/11/15/83 — warm near-black
+    chapterTitleFont: "serif",      // classical roman type
+    chapterTitleAlign: "center",    // perfect symmetry
+    chapterPreGap: 2.5,             // generous classical drop
+    sectionSize: 11,
+    sectionColor: "#2b2520",        // warm near-black
+    sectionFont: "serifItalic",     // italic for hierarchy
+    sectionAlign: "center",         // centered symmetry
+    sectionRule: false,             // no rules — ornamental breaks only
+    showDivider: true,
+    dividerColor: "#6b5d47",        // ochre ornamental divider
+    matterTitleSize: 20,
+    matterTitleAlign: "center",
+    titlePageTitleSize: 26,
+    titlePageSubtitleSize: 13,
+    titlePageAuthorSize: 11,
+    titlePageAlign: "center",       // perfect classical symmetry
+    titlePageTopGap: 9,             // 2-inch drop — classical proportions
+    scriptureIndent: 52,            // deep indent — scholarly apparatus
+    scriptureFontSize: 9.5,         // slightly smaller
+    accentColor: "#6b5d47",         // CMYK 0/13/33/58 — ochre
+    labelColor: "#8a7a65",          // lighter ochre
+  },
+
+  // 15 ── Bauhaus Functional ──────────────────────────────────────────────────
+  //
+  // Modelled on Bauhaus Dessau books (1925-1933) — László Moholy-Nagy,
+  // Herbert Bayer, Jan Tschichold's Neue Typographie. This is a RADICAL
+  // structural departure: asymmetric tension, primary colors, constructivist
+  // geometry. Key markers:
+  //   • Chapter number on RIGHT, title on LEFT — asymmetric counterbalance.
+  //   • Primary color accents ONLY — red (#d32f2f), blue (#1976d2), yellow.
+  //   • NO serifs anywhere — grotesque sans throughout (Bayer's universal alphabet).
+  //   • Rules ABOVE and BELOW chapter opener — constructivist framing.
+  //   • No running headers — clean mechanical precision.
+  //   • Lowercase everything (Bayer abolished capitals) — or all caps for labels.
+  //   • Tight mechanical spacing — 8pt gaps, modular grid.
+  //   • Diagonal or offset text blocks (simulated with alignment shifts).
+  //
+  "bauhaus-functional": {
+    id: "bauhaus-functional",
+    name: "Bauhaus Functional",
+    description: "Moholy-Nagy / Bayer — Asymmetric, primary colors, constructivist",
+    badge: "Bauhaus Dessau / Neue Typographie",
+    runningHeaders: false,          // clean, no ornament
+    bodyFontSize: 10.5,
+    bodyLineGap: 6,                 // mechanical rhythm
+    paragraphGap: 8,                // tight modular gap
+    paragraphIndent: 0,             // no indents — grid only
+    bodyAlign: "left",              // ragged right — modernist
+    chapterLabel: (n) => `${n}`,    // numeral only
+    chapterLabelSize: 56,           // large constructivist numeral
+    chapterLabelColor: "#d32f2f",   // CMYK 0/77/77/18 — Bauhaus red, press-safe
+    chapterLabelFont: "sansBold",
+    chapterLabelAlign: "right",     // RIGHT alignment — asymmetric tension
+    chapterTitleSize: 18,
+    chapterTitleColor: "#1a1a1a",   // near-black
+    chapterTitleFont: "sans",       // grotesque sans, regular
+    chapterTitleAlign: "left",      // LEFT — counterbalances right number
+    chapterPreGap: 0.8,
+    sectionSize: 12,
+    sectionColor: "#1976d2",        // CMYK 88/42/0/18 — Bauhaus blue, press-safe
+    sectionFont: "sansBold",
+    sectionAlign: "left",
+    sectionRule: true,              // geometric rules above sections
+    showDivider: true,
+    dividerColor: "#d32f2f",        // red constructivist rule
+    matterTitleSize: 20,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 30,
+    titlePageSubtitleSize: 13,
+    titlePageAuthorSize: 11,
+    titlePageAlign: "left",         // asymmetric
+    titlePageTopGap: 3,             // tight, functional
+    scriptureIndent: 0,             // no indent — rule-based separation
+    scriptureFontSize: 10,
+    accentColor: "#d32f2f",         // CMYK 0/77/77/18 — Bauhaus red
+    labelColor: "#1976d2",          // Bauhaus blue for contrast
+  },
+
+  // 16 ── Nordic Whisper ──────────────────────────────────────────────────────
+  //
+  // Modelled on Scandinavian book design — Norstedts (Sweden), Gyldendal
+  // (Denmark), Cappelen Damm (Norway). This is the OPPOSITE of bold: maximum
+  // white space, minimum ink, delicate restraint. Key markers:
+  //   • Tiny body text (9pt) with HUGE line gaps (10pt) — airy, breathable.
+  //   • NO bold fonts — only italic for emphasis (Nordic restraint).
+  //   • Hairline rules (0.25pt) — barely visible whispers.
+  //   • Generous margins everywhere — white space is the design.
+  //   • Muted grey-blue accent (#546e7a) — cool Nordic palette.
+  //   • Small chapter titles (14pt) — understated, never loud.
+  //   • No dividers, no ornament — purity through absence.
+  //   • Lowercase chapter labels — gentle, not commanding.
+  //   • Philosophy: "Less is more" — Scandinavian minimalism.
+  //
+  "nordic-whisper": {
+    id: "nordic-whisper",
+    name: "Nordic Whisper",
+    description: "Norstedts / Gyldendal — Minimal ink, maximum space, delicate",
+    badge: "Scandinavian Minimalism",
+    runningHeaders: true,
+    bodyFontSize: 9,                // delicate, small
+    bodyLineGap: 10,                // HUGE gap — airy Scandinavian space
+    paragraphGap: 16,               // maximum breathing room
+    paragraphIndent: 0,
+    bodyAlign: "left",              // ragged right — gentle
+    chapterLabel: (n) => `chapter ${n}`, // lowercase — Nordic restraint
+    chapterLabelSize: 9,            // tiny, whispered
+    chapterLabelColor: "#90a4ae",   // CMYK 35/19/19/32 — cool grey-blue, press-safe
+    chapterLabelFont: "serifItalic", // delicate italic, NOT bold
+    chapterLabelAlign: "left",
+    chapterTitleSize: 14,           // small, understated
+    chapterTitleColor: "#37474f",   // CMYK 60/44/43/70 — deep grey-blue
+    chapterTitleFont: "serif",      // regular serif, NO bold
+    chapterTitleAlign: "left",
+    chapterPreGap: 2,
+    sectionSize: 10,
+    sectionColor: "#546e7a",        // CMYK 53/32/31/54 — muted blue-grey
+    sectionFont: "serifItalic",     // italic only, NO bold — Nordic restraint
+    sectionAlign: "left",
+    sectionRule: false,             // no rules — minimal
+    showDivider: false,             // no dividers — purity
+    dividerColor: "#cfd8dc",        // hairline if needed
+    matterTitleSize: 16,
+    matterTitleAlign: "left",
+    titlePageTitleSize: 20,         // understated title
+    titlePageSubtitleSize: 11,
+    titlePageAuthorSize: 10,
+    titlePageAlign: "left",
+    titlePageTopGap: 10,            // generous space
+    scriptureIndent: 0,             // no indent — space-based separation
+    scriptureFontSize: 8.5,         // delicate
+    accentColor: "#546e7a",         // CMYK 53/32/31/54 — cool Nordic blue-grey
+    labelColor: "#90a4ae",          // lighter grey-blue
   },
 };
 

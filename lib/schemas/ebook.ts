@@ -307,7 +307,7 @@ export const BOOK_TEMPLATE_IDS = [
   "premium-literary",
 ] as const;
 
-export const BookTemplateEnum = z.enum(["classic-academic", "modern-business", "devotional", "popular-nonfiction", "premium-literary", "pastoral-ministry", "memoir-narrative", "study-reference", "charismatic-prophetic", "leadership-vision", "minimalist-wellness", "bold-magazine"]);
+export const BookTemplateEnum = z.enum(["classic-academic", "modern-business", "devotional", "popular-nonfiction", "premium-literary", "pastoral-ministry", "memoir-narrative", "study-reference", "charismatic-prophetic", "leadership-vision", "minimalist-wellness", "bold-magazine", "basel-swiss", "venetian-aldine", "bauhaus-functional", "nordic-whisper"]);
 
 // ─── Print Specifications ─────────────────────────────────────────────────────
 
@@ -465,7 +465,7 @@ export const FrontMatterRequestSchema = z.object({
 export const ExportRequestSchema = z.object({
   manifest: EbookManifestSchema,
   formats: z.object({ pdf: z.boolean(), epub: z.boolean(), docx: z.boolean() }).default({ pdf: true, epub: true, docx: true }),
-  template: z.enum(["classic-academic", "modern-business", "devotional", "popular-nonfiction", "premium-literary", "pastoral-ministry", "memoir-narrative", "study-reference", "charismatic-prophetic", "leadership-vision", "minimalist-wellness", "bold-magazine"]).default("devotional"),
+  template: z.enum(["classic-academic", "modern-business", "devotional", "popular-nonfiction", "premium-literary", "pastoral-ministry", "memoir-narrative", "study-reference", "charismatic-prophetic", "leadership-vision", "minimalist-wellness", "bold-magazine", "basel-swiss", "venetian-aldine", "bauhaus-functional", "nordic-whisper"]).default("devotional"),
   printSpec: PrintSpecSchema.optional(),
 });
 
