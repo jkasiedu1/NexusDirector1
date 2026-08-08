@@ -217,6 +217,8 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
   const trimSpec = TRIM_SIZE_SPECS[resolvedPrintSpec.trimSize ?? "6x9"];
   const showRunningHeaders = resolvedPrintSpec.runningHeaders !== false && tpl.runningHeaders;
   const sectionOrnament = resolvedPrintSpec.sectionOrnament ?? "rule";
+  const fontFamily: FontFamily = resolvedPrintSpec.bodyFontFamily ?? "template";
+  const fontSizeScale = resolvedPrintSpec.fontSizeScale ?? 1.0;
 
   // ── Body text alignment override ──────────────────────────────────────────
   // If user specifies bodyTextAlign, override the template's default bodyAlign.
@@ -343,7 +345,7 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
       // UPGRADE 2: Ensure font embedding (PDFKit default is true, but explicitly set)
       compress: true,
     });
-    const fonts = resolvePdfFonts(doc);
+    const fonts = resolvePdfFonts(doc, fontFamily);
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
