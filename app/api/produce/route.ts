@@ -135,13 +135,15 @@ RULES — non-negotiable:
         // ── Phase 1: Academy shell ─────────────────────────────────────────────
         // Generates all metadata, landing page, pricing, SEO, and module outlines
         // with lightweight lesson stubs only. Stays well under the 8K output limit.
+        // UPGRADE: Increased maxTokens from 6000 to 12000 for academy shell generation
+        // to prevent truncation when processing long source materials (books, transcripts).
         const { object: shell } = await generateObject({
           model: deepSeekModel,
           schema: AcademyShellSchema,
           schemaName: "AcademyShell",
           schemaDescription: "Academy structure with landing page, pricing, SEO, and lesson outlines — no lesson content",
           mode: "json",
-          maxTokens: 6_000,
+          maxTokens: 12000,
           temperature: 0.3,
           system: `You are the Curator — a world-class educational content architect. Transform source material into an online academy structure.
 
@@ -263,13 +265,16 @@ GROUNDING — non-negotiable hard rules:
             ? `\nALREADY-DEFINED TERMS \u2014 DO NOT REDEFINE IN THIS MODULE:\nThe following terms were defined and explained in earlier modules. Do NOT add them to keyTerms and do NOT re-explain them in notes \u2014 at most reference them by name:\n${definedTerms.map((t) => `  \u2022 "${t.term}" (Module ${t.definedInModule + 1})`).join("\n")}`
             : "";
 
+          // UPGRADE: Increased maxTokens from 6000 to 12000 per module to handle rich
+          // lesson notes without truncation. Previous limit was causing incomplete quiz
+          // generation and truncated action items on content-dense modules.
           const { object: modContent } = await generateObject({
             model: deepSeekModel,
             schema: SingleModuleContentSchema,
             schemaName: "ModuleContent",
             schemaDescription: "Full lesson content for one academy module",
             mode: "json",
-            maxTokens: 6_000,
+            maxTokens: 12000,
             temperature: 0.2,
             system: phase2System,
             prompt: [

@@ -109,10 +109,13 @@ export async function POST(req: NextRequest) {
 
   try {
     if (parsed.action === "outline") {
+      // UPGRADE: Increased maxTokens from 2800 to 16000 to handle long sermons/transcripts
+      // without truncation. 2800 tokens ≈ 2100 words — insufficient for 60+ min sermons.
+      // 16000 tokens ≈ 12000 words — covers 90-120 min sermons with full detail.
       const { text } = await generateText({
         model: deepSeekReasonerModel,
         temperature: 0.3,
-        maxTokens: 2800,
+        maxTokens: 16000,
         system: outlineSystemPrompt(),
         prompt: `RAW TRANSCRIPT:\n${parsed.rawTranscript}`,
       });
@@ -126,10 +129,13 @@ export async function POST(req: NextRequest) {
       `COMMAND:\n${parsed.command}`,
     ].join("\n\n");
 
+    // UPGRADE: Increased maxTokens from 3600/3800 to 16000/18000 to prevent truncation
+    // on long sermon outlines when applying commands. The previous limits were causing
+    // the agent to drop entire sections when processing 10,000+ word transcripts.
     const first = await generateText({
       model: deepSeekReasonerModel,
       temperature: 0.25,
-      maxTokens: 3600,
+      maxTokens: 16000,
       system: commandSystemPrompt(),
       prompt,
     });
@@ -140,7 +146,7 @@ export async function POST(req: NextRequest) {
       const retry = await generateText({
         model: deepSeekReasonerModel,
         temperature: 0.2,
-        maxTokens: 3800,
+        maxTokens: 18000,
         system: [
           commandSystemPrompt(),
           "CRITICAL: Your previous draft removed too much content.",

@@ -268,6 +268,7 @@ async function architectOneChapterFromTranscript(
     schema: SingleChapterPlanSchema,
     mode: "json",
     temperature: 1,
+    maxTokens: 8000,
     system: `You are a senior structural editor turning one teaching message into a premium book chapter.
 
 SOURCE-LOCK — ABSOLUTE RULE:
@@ -561,6 +562,7 @@ export async function POST(req: NextRequest) {
         model: deepSeekReasonerModel,
         schema: MinimalArchitectureSchema,
         mode: "json",
+        maxTokens: 16000,
         system: `# ROLE
 You are an elite structural editor for a top-tier publishing house. Your job is to map raw, sanitized audio transcript segments into a clean chapter architecture for a published book series.
 

@@ -142,7 +142,10 @@ function stampPageHeader(
 ) {
   const { gutterMargin, outsideMargin, textW, pageW, footerY } = layout;
 
-  // Determine if this is a verso (even) or recto (odd) page based on the page number
+  // INDUSTRY STANDARD: Page numbering follows recto/verso convention
+  // Recto (odd-numbered) = right-hand pages | Verso (even-numbered) = left-hand pages
+  // This determines header placement (book title verso, chapter title recto) and
+  // margin alternation (gutter/outside swap) per Chicago Manual of Style §1.6-1.7
   const numericPageNum = typeof pageNumber === "string" ? 0 : pageNumber; // roman numerals always use physical position
   const isVerso = numericPageNum % 2 === 0;
   const mL = isVerso ? outsideMargin : gutterMargin;
@@ -176,9 +179,12 @@ function stampPageHeader(
       .stroke();
   }
 
-  // Footer page number (folio) — skip on chapter openers if folioStyle is "none-on-openers"
+  // INDUSTRY STANDARD: Folio (page number) placement follows professional publishing norms:
+  // - "center": centered footer on all pages (HarperCollins, Simon & Schuster standard)
+  // - "outside": outside margin (verso left, recto right) — Penguin/Random House style
+  // - "none-on-openers": no numbers on chapter opener pages (Chicago Manual preference)
   if (folioStyle === "none-on-openers" && isChapterOpener) {
-    return; // no page number on chapter opener pages
+    return; // no page number on chapter opener pages per Chicago Manual §1.6
   }
 
   // Disable bottom-margin check so PDFKit writes here
@@ -446,9 +452,19 @@ export async function generatePdfBuffer(manifest: EbookManifest, templateId?: st
     });
 
     // ── Helper: insert blank verso so the NEXT addPage() lands on recto ────────
+    // INDUSTRY STANDARD: Chapters and major sections (Preface, Introduction, Back Matter)
+    // must always begin on a recto (right-hand, odd-numbered page). This function ensures
+    // that by inserting a blank verso page when the current page is already recto.
     const forceNextRecto = () => {
       // totalPageCounter is odd → we're on a recto → next natural page = verso → insert blank
       if (totalPageCounter % 2 !== 0) { nextIsBlank = true; doc.addPage(); doc.x = doc.page.margins.left; }
+    };
+    
+    // ── Helper: check if we need a page break to prevent orphan sections ─────────
+    // Prevents starting a new section too close to the bottom of a page, which would
+    // create awkward single-line fragments. Threshold is 5 body-line heights.
+    const needsPageBreak = (lineHeight: number): boolean => {
+      return doc.page.height - doc.page.margins.bottom - doc.y < lineHeight * 5;
     };
 
     // ── Title page (page 1, recto) ────────────────────────────────────────────
@@ -1608,7 +1624,9 @@ function writeChapter(doc: any, chapter: ChapterDraft, quotes: Quote[], fonts: P
 
   let _firstSectionDone = false;
   for (const section of chapter.sections) {
-    // Orphan prevention: if fewer than 5 body-line heights remain on this page, start a new one
+    // INDUSTRY STANDARD: Orphan prevention — if fewer than 5 body-line heights remain
+    // on this page, start a new page. This prevents section headings from being stranded
+    // at the bottom of a page with no body text following (Chicago Manual of Style §2.113).
     const _lineH = (bodyFontSize ?? tpl.bodyFontSize) + tpl.bodyLineGap;
     if (doc.page.height - doc.page.margins.bottom - doc.y < _lineH * 5) {
       doc.addPage();

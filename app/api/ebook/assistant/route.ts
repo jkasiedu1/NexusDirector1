@@ -250,11 +250,13 @@ export async function POST(req: NextRequest) {
     : null;
 
   try {
+    // UPGRADE: Increased maxTokens from 8000 to 16000 to handle large book manuscripts
+    // with many chapters and sections without truncation on complex edit operations.
     const { object } = await generateObject({
       model: selectedModel,
       schema: EbookChangeSchema,
       mode: "json",
-      maxTokens: 8000,
+      maxTokens: 16000,
       temperature: 0.15,
       system: `You are the Nexus Book Director — a precision ebook editor with MAXIMUM AUTHORITY over every part of this published teaching book. You receive the full book structure and can make any change the user requests.
 
