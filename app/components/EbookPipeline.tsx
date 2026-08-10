@@ -2872,7 +2872,7 @@ export function EbookPipeline({
         setAudioSourceStatuses(["idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle"]);
 
         setStage("filtering");
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 10; i++) {
           if (!audioFiles[i] && !transcriptFiles[i]) continue;
           const label = `Slot-${i + 1}`;
           
