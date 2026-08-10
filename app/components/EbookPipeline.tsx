@@ -1765,8 +1765,8 @@ export function EbookPipeline({
   /** Called when the user clicks Save inside the pipeline. Receives the chosen project name. */
   onSaveProject?: (name: string) => void;
 } = {}) {
-  const [audioFiles, setAudioFiles] = useState<(File | null)[]>([null, null, null, null, null, null]);
-  const [transcriptFiles, setTranscriptFiles] = useState<(File | null)[]>([null, null, null, null, null, null]);
+  const [audioFiles, setAudioFiles] = useState<(File | null)[]>([null, null, null, null, null, null, null, null, null, null]);
+  const [transcriptFiles, setTranscriptFiles] = useState<(File | null)[]>([null, null, null, null, null, null, null, null, null, null]);
   const [stage, setStage] = useState<PipelineStage>("idle");
   const [authorInstructions, setAuthorInstructions] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
@@ -1807,7 +1807,7 @@ export function EbookPipeline({
   const [reviewTab, setReviewTab] = useState<ReviewTab>("manuscript");
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignment[]>([]);
   const [sourceTranscripts, setSourceTranscripts] = useState<Array<{ label: string; text: string }>>([]);
-  const [audioSourceStatuses, setAudioSourceStatuses] = useState<Array<"idle" | "transcribing" | "complete" | "error" | "regenerating">>(["idle", "idle", "idle", "idle", "idle", "idle"]);
+  const [audioSourceStatuses, setAudioSourceStatuses] = useState<Array<"idle" | "transcribing" | "complete" | "error" | "regenerating">>(["idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle"]);
   const sourceMapImportRef = useRef<HTMLInputElement | null>(null);
   const jobIdRef = useRef<string>(newJobId());
   // Mirror of log in a ref so runPipeline (async) can read the current value for checkpoints
@@ -2374,7 +2374,7 @@ export function EbookPipeline({
   }, []);
 
   // A slot is active if it has audio OR a pre-existing transcript
-  const activeSlotCount = [0, 1, 2, 3, 4, 5].filter(
+  const activeSlotCount = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(
     (i) => audioFiles[i] || transcriptFiles[i]
   ).length;
   const canStart = activeSlotCount >= 1 && stage === "idle";
@@ -2383,7 +2383,7 @@ export function EbookPipeline({
 
   const handleRegenerateSource = useCallback(async (slot: number, newTranscriptFile?: File) => {
     const label = `Slot-${slot + 1}`;
-    const sourceId = `audio-${slot + 1}` as `audio-${1 | 2 | 3 | 4 | 5 | 6}`;
+    const sourceId = `audio-${slot + 1}` as `audio-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10}`;
     
     try {
       setAudioSourceStatuses((prev) => {
@@ -2869,7 +2869,7 @@ export function EbookPipeline({
         const transcriptResults: { label: string; text: string }[] = [];
 
         // Reset all statuses to idle before starting
-        setAudioSourceStatuses(["idle", "idle", "idle", "idle", "idle", "idle"]);
+        setAudioSourceStatuses(["idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle", "idle"]);
 
         setStage("filtering");
         for (let i = 0; i < 6; i++) {
@@ -3939,7 +3939,7 @@ export function EbookPipeline({
 
       {/* Audio + Transcript Upload Grid */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
           <AudioCard
             key={i}
             index={i}
@@ -4515,9 +4515,9 @@ export function EbookPipeline({
                 </div>
 
                 <AudioSourceManager
-                  audioSources={[0, 1, 2, 3, 4, 5].map((i) => {
+                  audioSources={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => {
                     const label = `Slot-${i + 1}`;
-                    const sourceId = `audio-${i + 1}` as `audio-${1 | 2 | 3 | 4 | 5 | 6}`;
+                    const sourceId = `audio-${i + 1}` as `audio-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10}`;
                     const transcript = sourceTranscripts.find((t) => t.label === label);
                     
                     // Count sections assigned to this source - check both segment IDs and source audio
