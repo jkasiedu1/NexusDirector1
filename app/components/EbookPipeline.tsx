@@ -2270,8 +2270,14 @@ export function EbookPipeline({
       try {
         const raw = localStorage.getItem(JOB_STATE_KEY);
         if (!raw) return null;
-        return normalizeJob(JSON.parse(raw) as EbookJobState);
-      } catch { return null; }
+        const parsed = JSON.parse(raw) as EbookJobState;
+        // Populate savedJobRef immediately so resume button shows even if normalization fails
+        savedJobRef.current = parsed;
+        return normalizeJob(parsed);
+      } catch (err) {
+        console.warn("[EbookPipeline] Failed to load saved job from localStorage:", err);
+        return null;
+      }
     };
 
     const restore = (job: EbookJobState) => {
@@ -2360,8 +2366,18 @@ export function EbookPipeline({
     if (!savedId) return;
     void getEbookJob(savedId).then((job) => {
       if (!job) return;
-      restore(normalizeJob(job));
-    }).catch(() => { /* IndexedDB unavailable — ignore */ });
+      // Populate savedJobRef immediately so resume button shows even if normalization fails
+      savedJobRef.current = job;
+      try {
+        restore(normalizeJob(job));
+      } catch (err) {
+        console.warn("[EbookPipeline] Failed to normalize saved job from IndexedDB:", err);
+        // Still populate savedJobRef so resume button shows
+        setError("Load failed — tap Resume to retry");
+      }
+    }).catch((err) => {
+      console.warn("[EbookPipeline] Failed to load job from IndexedDB:", err);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
