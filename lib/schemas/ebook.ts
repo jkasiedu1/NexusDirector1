@@ -45,7 +45,7 @@ export const VoiceDNASchema = z.object({
 
 export const ContentSegmentSchema = z.object({
   id: z.string(),
-  sourceAudio: z.enum(["audio-1", "audio-2", "audio-3", "audio-4", "audio-5", "audio-6"]),
+  sourceAudio: z.enum(["audio-1", "audio-2", "audio-3", "audio-4", "audio-5", "audio-6", "audio-7", "audio-8", "audio-9", "audio-10"]),
   topic: z.string(),
   rawText: z.string(),                          // the actual transcript excerpt
   keyPoints: z.array(z.string()).default([]),               // points explicitly made in this segment
