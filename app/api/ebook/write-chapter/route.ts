@@ -194,11 +194,23 @@ ${sectionPayload}`;
         try { controller.enqueue(encoder.encode(": ping\n\n")); } catch { /* closed */ }
       }, 15_000);
       try {
+        // G2b: a flat 16k ceiling starved rich chapters — a 5-section chapter sharing
+        // one budget writes noticeably thinner per section than write-section, which
+        // gives every section its own uncapped call. Scale the ceiling with the
+        // chapter's actual target word count (~1.8 tokens/word for prose + JSON
+        // overhead, plus a per-section buffer for claim ledgers/formatting) so a
+        // single-pass chapter can develop material as fully as the per-section writer.
+        const totalTargetWords = sections.reduce((sum, s) => sum + (s.targetWordCount ?? 500), 0);
+        const dynamicMaxTokens = Math.min(
+          64_000,
+          Math.max(16_000, Math.round(totalTargetWords * 1.8) + sections.length * 400),
+        );
+
         const { object } = await generateObject({
           model: deepSeekModel,
           schema: WriteChapterOutputSchema,
           mode: "json",
-          maxTokens: 16_000, // G2: explicit ceiling for full-chapter output
+          maxTokens: dynamicMaxTokens, // G2b: scaled to chapter content, not a flat cap
           temperature: 0.65, // G1: raised per single-pass writer instructions for warmer, less mechanical prose
           system,
           prompt,

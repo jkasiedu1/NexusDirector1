@@ -132,27 +132,18 @@ RULES — non-negotiable:
             ).join("\n\n")}`
           : "";
 
-        // Dynamic token allocation: scale based on source length (3K-12K range)
-        function calculateMaxTokens(sourceLength: number, complexity: number): number {
-          const score = sourceLength / 1000 + complexity * 0.5;
-          if (score < 3) return 3000;    // Small source
-          if (score < 8) return 6000;    // Medium source
-          if (score < 15) return 10000;  // Large source
-          return 12000;                  // Very large source (book-length)
-        }
-
-        // ── Phase 1: Academy shell ──────────────────────────────────────────────
+        // ── Phase 1: Academy shell ─────────────────────────────────────────────
         // Generates all metadata, landing page, pricing, SEO, and module outlines
-        // with lightweight lesson stubs only.
-        const shellMaxTokens = calculateMaxTokens(parsedInput.sourceText.length, contentMap.themes.length);
-        
+        // with lightweight lesson stubs only. Stays well under the 8K output limit.
+        // UPGRADE: Increased maxTokens from 6000 to 12000 for academy shell generation
+        // to prevent truncation when processing long source materials (books, transcripts).
         const { object: shell } = await generateObject({
           model: deepSeekModel,
           schema: AcademyShellSchema,
           schemaName: "AcademyShell",
           schemaDescription: "Academy structure with landing page, pricing, SEO, and lesson outlines — no lesson content",
           mode: "json",
-          maxTokens: shellMaxTokens,
+          maxTokens: 12000,
           temperature: 0.3,
           system: `You are the Curator — a world-class educational content architect. Transform source material into an online academy structure.
 
@@ -274,16 +265,16 @@ GROUNDING — non-negotiable hard rules:
             ? `\nALREADY-DEFINED TERMS \u2014 DO NOT REDEFINE IN THIS MODULE:\nThe following terms were defined and explained in earlier modules. Do NOT add them to keyTerms and do NOT re-explain them in notes \u2014 at most reference them by name:\n${definedTerms.map((t) => `  \u2022 "${t.term}" (Module ${t.definedInModule + 1})`).join("\n")}`
             : "";
 
-          const lessonCount = modOutline.lessons.length;
-          const moduleMaxTokens = calculateMaxTokens(parsedInput.sourceText.length, lessonCount);
-          
+          // UPGRADE: Increased maxTokens from 6000 to 12000 per module to handle rich
+          // lesson notes without truncation. Previous limit was causing incomplete quiz
+          // generation and truncated action items on content-dense modules.
           const { object: modContent } = await generateObject({
             model: deepSeekModel,
             schema: SingleModuleContentSchema,
             schemaName: "ModuleContent",
             schemaDescription: "Full lesson content for one academy module",
             mode: "json",
-            maxTokens: moduleMaxTokens,
+            maxTokens: 12000,
             temperature: 0.2,
             system: phase2System,
             prompt: [

@@ -249,25 +249,14 @@ export async function POST(req: NextRequest) {
       }
     : null;
 
-  // Dynamic token allocation: scale based on manuscript size (3K-16K range)
-  function calculateMaxTokens(manifest: typeof parsedInput.manifest): number {
-    const chapterCount = manifest.chapters.length;
-    const totalWords = manifest.chapters.reduce((sum, ch) => sum + ch.totalWordCount, 0);
-    
-    if (chapterCount <= 3 || totalWords < 5000) return 3000;   // Small book (3 chapters)
-    if (chapterCount <= 6 || totalWords < 15000) return 6000;  // Medium book (4-6 chapters)
-    if (chapterCount <= 10 || totalWords < 30000) return 10000; // Large book (7-10 chapters)
-    return 16000;                                               // Very large book (11+ chapters)
-  }
-
   try {
-    const maxTokens = calculateMaxTokens(parsedInput.manifest);
-    
+    // UPGRADE: Increased maxTokens from 8000 to 16000 to handle large book manuscripts
+    // with many chapters and sections without truncation on complex edit operations.
     const { object } = await generateObject({
       model: selectedModel,
       schema: EbookChangeSchema,
       mode: "json",
-      maxTokens,
+      maxTokens: 16000,
       temperature: 0.15,
       system: `You are the Nexus Book Director — a precision ebook editor with MAXIMUM AUTHORITY over every part of this published teaching book. You receive the full book structure and can make any change the user requests.
 

@@ -107,23 +107,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Dynamic token allocation: scale based on input size (3K-16K range)
-  function calculateMaxTokens(inputLength: number): number {
-    if (inputLength < 2000) return 3000;   // 10-15 min sermon
-    if (inputLength < 5000) return 6000;   // 20-30 min sermon
-    if (inputLength < 10000) return 10000; // 40-60 min sermon
-    return 16000;                          // 90-120 min sermon
-  }
-
   try {
     if (parsed.action === "outline") {
-      const transcriptLength = parsed.rawTranscript.length;
-      const maxTokens = calculateMaxTokens(transcriptLength);
-      
+      // UPGRADE: Increased maxTokens from 2800 to 16000 to handle long sermons/transcripts
+      // without truncation. 2800 tokens ≈ 2100 words — insufficient for 60+ min sermons.
+      // 16000 tokens ≈ 12000 words — covers 90-120 min sermons with full detail.
       const { text } = await generateText({
         model: deepSeekReasonerModel,
         temperature: 0.3,
-        maxTokens,
+        maxTokens: 16000,
         system: outlineSystemPrompt(),
         prompt: `RAW TRANSCRIPT:\n${parsed.rawTranscript}`,
       });
@@ -137,14 +129,13 @@ export async function POST(req: NextRequest) {
       `COMMAND:\n${parsed.command}`,
     ].join("\n\n");
 
-    const combinedLength = parsed.rawTranscript.length + parsed.organizedMarkdown.length;
-    const maxTokens = calculateMaxTokens(combinedLength);
-    const retryMaxTokens = Math.min(maxTokens + 2000, 18000); // Add buffer for retry
-    
+    // UPGRADE: Increased maxTokens from 3600/3800 to 16000/18000 to prevent truncation
+    // on long sermon outlines when applying commands. The previous limits were causing
+    // the agent to drop entire sections when processing 10,000+ word transcripts.
     const first = await generateText({
       model: deepSeekReasonerModel,
       temperature: 0.25,
-      maxTokens,
+      maxTokens: 16000,
       system: commandSystemPrompt(),
       prompt,
     });
@@ -155,7 +146,7 @@ export async function POST(req: NextRequest) {
       const retry = await generateText({
         model: deepSeekReasonerModel,
         temperature: 0.2,
-        maxTokens: retryMaxTokens,
+        maxTokens: 18000,
         system: [
           commandSystemPrompt(),
           "CRITICAL: Your previous draft removed too much content.",
