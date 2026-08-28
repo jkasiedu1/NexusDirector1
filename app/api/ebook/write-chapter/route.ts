@@ -143,11 +143,11 @@ Extract core insights from the transcript. Reassemble as premium book prose — 
 Each paragraph is a string in a JSON array. ONE idea per paragraph. 3–5 sentences. New point, new scripture quotation, or new example = new array element. NEVER add markdown headings inside paragraph arrays.
 
 # SECTION BOUNDARIES
-Each section is sealed. Do NOT preview the next section's content from within the current one. Presuppose what you just wrote — opening sentences of Section 2+ must not re-introduce concepts already developed.
+Each section OWNS its assigned content — never fully re-explain a concept already developed in an earlier section. A section's closing paragraph MAY build forward momentum (a question, tension, or implication the next section resolves), but must NOT re-introduce or develop the next section's concepts, stories, or scripture. Presuppose what you just wrote — opening sentences of Section 2+ must not re-introduce concepts already developed.
 
 # SCRIPTURE RULES
 • Short (<40 words): *"verse text"* (Book Chapter:Verse, Translation) inline
-• Long (40+ words): markdown blockquote, no quotation marks, — Reference (Translation) at end
+• Long (40+ words): markdown blockquote, no quotation marks, citation on its own final line with no dash: Reference (Translation)
 • Always complete the TEXT → TRUTH → APPLICATION circuit within 2–3 paragraphs
 • No post-quote restatement (next sentence must ADVANCE the argument, not re-explain the quote)
 • Anchor controlling verse BEFORE exposition, not after
@@ -199,7 +199,7 @@ ${sectionPayload}`;
           schema: WriteChapterOutputSchema,
           mode: "json",
           maxTokens: 16_000, // G2: explicit ceiling for full-chapter output
-          temperature: 0.55, // G1: lower temp for cross-section coherence
+          temperature: 0.65, // G1: raised per single-pass writer instructions for warmer, less mechanical prose
           system,
           prompt,
         });
