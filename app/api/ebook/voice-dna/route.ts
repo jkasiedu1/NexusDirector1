@@ -207,21 +207,27 @@ closingPattern
       return NextResponse.json(normalized, { status: 200 });
     } catch {
       // DeepSeek occasionally returns near-JSON text in json mode; strict re-ask + local validation recovers safely.
-      const { text } = await generateText({
-        model: deepSeekModel,
-        temperature: 0.2,
-        maxTokens: 1800,
-        system: `${systemPrompt}\n\nReturn ONLY a valid JSON object. No markdown fences. No commentary.`,
-        prompt: userPrompt,
-      });
-
       try {
-        const parsed = VoiceDNASchema.parse(tryParseJsonObject(text));
-        const normalized = ensureToneProfile(parsed);
-        return NextResponse.json(normalized, { status: 200 });
+        const { text } = await generateText({
+          model: deepSeekModel,
+          temperature: 0.2,
+          maxTokens: 1800,
+          system: `${systemPrompt}\n\nReturn ONLY a valid JSON object. No markdown fences. No commentary.`,
+          prompt: userPrompt,
+        });
+
+        try {
+          const parsed = VoiceDNASchema.parse(tryParseJsonObject(text));
+          const normalized = ensureToneProfile(parsed);
+          return NextResponse.json(normalized, { status: 200 });
+        } catch {
+          // Deterministic last-chance fallback (no additional model call) to prevent timeout cascades.
+          const fallback = ensureToneProfile({ toneProfile: toneFromText(text) });
+          return NextResponse.json(fallback, { status: 200 });
+        }
       } catch {
-        // Deterministic last-chance fallback (no additional model call) to prevent timeout cascades.
-        const fallback = ensureToneProfile({ toneProfile: toneFromText(text) });
+        // generateText itself failed (network/rate-limit) — never block the pipeline on Voice DNA.
+        const fallback = ensureToneProfile({ toneProfile: "direct, clear, pastoral" });
         return NextResponse.json(fallback, { status: 200 });
       }
     }
