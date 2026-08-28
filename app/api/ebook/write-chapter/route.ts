@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
+import fs from "node:fs";
+import path from "node:path";
 import { deepSeekModel } from "@/lib/ai-providers";
 import { WriteChapterRequestSchema, WriteChapterOutputSchema } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES, READER_NORMALIZATION_RULES, PREMIUM_BOOK_STYLE_RULES, stripAudienceLanguage, cleanTranscriptForBook } from "@/lib/editorial-style-bible";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+// Extra editorial rules that apply ONLY to the single-pass chapter writer.
+// Loaded from the repo-root markdown doc so it stays a single source of truth.
+let singlePassInstructionsCache: string | null = null;
+function getSinglePassInstructions(): string {
+  if (singlePassInstructionsCache !== null) return singlePassInstructionsCache;
+  try {
+    const filePath = path.join(process.cwd(), "Comprehensive-single-pass-writer-Instructions.md");
+    singlePassInstructionsCache = fs.readFileSync(filePath, "utf-8");
+  } catch {
+    singlePassInstructionsCache = "";
+  }
+  return singlePassInstructionsCache;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as unknown;
@@ -150,7 +166,8 @@ Each section is sealed. Do NOT preview the next section's content from within th
 • Any sentence beginning with a markdown heading symbol (#, ##, ###)
 ${SOURCE_LOCK_RULES}${voiceDnaBlock}${authorConfigBlock}${priorContextBlock}${bannedRecapsBlock}${quoteDedupBlock}${lexicalBlock}${translationBlock}
 ${READER_NORMALIZATION_RULES}
-${PREMIUM_BOOK_STYLE_RULES}`;
+${PREMIUM_BOOK_STYLE_RULES}
+${getSinglePassInstructions()}`;
 
   const coreThesisLine = coreThesis ? `\nCORE BOOK THESIS (thread through every section): ${coreThesis}` : "";
   const premiseLine = chapterPremise ? `\nCHAPTER PREMISE: ${chapterPremise}` : "";

@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["*.replit.dev", "*.replit.app", "*.riker.replit.dev"],
   outputFileTracingIncludes: {
     "/api/ebook/export": ["./node_modules/pdfkit/js/data/**/*"],
+    "/api/ebook/write-chapter": ["./Comprehensive-single-pass-writer-Instructions.md"],
   },
   typescript: {
     ignoreBuildErrors: true,
