@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { env } from "@/lib/env";
 import { ArchitectRequestSchema } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
@@ -264,7 +264,7 @@ async function architectOneChapterFromTranscript(
   }).join("\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n");
 
   const { object } = await generateObject({
-    model: deepSeekReasonerModel,
+    model: deepSeekV4ProModel,
     schema: SingleChapterPlanSchema,
     mode: "json",
     temperature: 1,
@@ -559,7 +559,7 @@ export async function POST(req: NextRequest) {
       } else {
       {
         const result = await generateObject({
-        model: deepSeekReasonerModel,
+        model: deepSeekV4ProModel,
         schema: MinimalArchitectureSchema,
         mode: "json",
         maxTokens: 16000,

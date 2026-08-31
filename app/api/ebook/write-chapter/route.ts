@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekChatModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { WriteChapterRequestSchema, WriteChapterOutputSchema } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES, READER_NORMALIZATION_RULES, PREMIUM_BOOK_STYLE_RULES, stripAudienceLanguage, cleanTranscriptForBook } from "@/lib/editorial-style-bible";
 
@@ -178,7 +178,7 @@ ${sectionPayload}`;
       }, 15_000);
       try {
         const { object } = await generateObject({
-          model: deepSeekChatModel,
+          model: deepSeekV4ProModel,
           schema: WriteChapterOutputSchema,
           mode: "json",
           maxTokens: 16_000, // G2: explicit ceiling for full-chapter output

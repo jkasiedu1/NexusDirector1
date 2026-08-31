@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
-import { deepSeekChatModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { z } from "zod";
 import { PolishChapterRequestSchema } from "@/lib/schemas/ebook";
 import { PREMIUM_BOOK_STYLE_RULES, READER_NORMALIZATION_RULES, SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     let object: z.infer<typeof PolishOutputSchema>;
     try {
       const { text } = await generateText({
-        model: deepSeekChatModel,
+        model: deepSeekV4ProModel,
         temperature: 0.2,
         system: `You are an editorial assistant finalizing a chapter of a published teaching book.
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekChatModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { EbookManifestSchema, ChapterDraftSchema } from "@/lib/schemas/ebook";
 
 export const runtime = "nodejs";
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { object } = await generateObject({
-        model: deepSeekChatModel,
+        model: deepSeekV4ProModel,
         schema: FormatFrontMatterOutputSchema,
         mode: "json",
         temperature: 0.05,
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     );
 
     const { object } = await generateObject({
-      model: deepSeekChatModel,
+      model: deepSeekV4ProModel,
       schema: FormatChapterOutputSchema,
       mode: "json",
       temperature: 0.05,
