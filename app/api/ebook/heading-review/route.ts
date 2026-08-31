@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { z } from "zod";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekChatModel } from "@/lib/ai-providers";
 import { BookArchitectureSchema } from "@/lib/schemas/ebook";
 
 export const runtime = "nodejs";
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { text } = await generateText({
-      model: deepSeekModel,
+      model: deepSeekChatModel,
       maxTokens: 8000,
       prompt: `You are a senior developmental editor specializing in nonfiction book architecture and reader experience.
 

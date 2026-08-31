@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekChatModel } from "@/lib/ai-providers";
 import { WriteSectionRequestSchema } from "@/lib/schemas/ebook";
 import { PREMIUM_BOOK_STYLE_RULES, READER_NORMALIZATION_RULES, SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
 import { stripAudienceLanguage } from "@/lib/editorial-style-bible";
@@ -58,7 +58,7 @@ async function fallbackSectionBody(input: z.infer<typeof WriteSectionRequestSche
 
   try {
     const { text } = await generateText({
-      model: deepSeekModel,
+      model: deepSeekChatModel,
       temperature: 0.5,
       maxTokens: 1200,
       system: `You are a professional book editor. Rewrite the raw spoken transcript below into clean, polished book prose.
@@ -856,7 +856,7 @@ ${isAbsoluteFirstSection ? "" : "\nTRANSITIONAL OPENING: Open with \"Having seen
     const deduplicatedSystem = `${EDITORIAL_SYSTEM}${voiceDnaBlock}${authorConfigBlock}${readabilityBlock}${coreThesisBlock}${usedIllustrationsBlock}${primaryTranslationBlock}${alreadyQuotedBlock}${dedupBlock}`;
 
     const { object } = await generateObject({
-      model: deepSeekModel,
+      model: deepSeekChatModel,
       schema: SectionBodySchema,
       mode: "json",
       temperature: 0.7,

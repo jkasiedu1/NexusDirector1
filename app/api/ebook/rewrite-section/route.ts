@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, streamText } from "ai";
 import { z } from "zod";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekChatModel } from "@/lib/ai-providers";
 import { SectionAssignmentSchema } from "@/lib/schemas/ebook";
 import { PREMIUM_BOOK_STYLE_RULES, SOURCE_LOCK_RULES, READER_NORMALIZATION_RULES } from "@/lib/editorial-style-bible";
 
@@ -232,7 +232,7 @@ ${usedScriptures.map(q => `• ${q.reference} — DO NOT REPRODUCE TEXT`).join("
       ].filter(Boolean).join("\n");
 
       const { object } = await generateObject({
-        model: deepSeekModel,
+        model: deepSeekChatModel,
         schema: CritiqueSchema,
         mode: "json",
         temperature: 0.35,
@@ -290,7 +290,7 @@ Do not invent new source facts or suggest content not in the transcript.`,
       ].filter(Boolean).join("\n");
 
       const { object } = await generateObject({
-        model: deepSeekModel,
+        model: deepSeekChatModel,
         schema: ParagraphRefineSchema,
         mode: "json",
         temperature: 0.35,
@@ -324,7 +324,7 @@ ELEVATION RULES (apply before returning):
 
     // Full section rewrite using streamText for 4x faster performance
     const stream = await streamText({
-      model: deepSeekModel,
+      model: deepSeekChatModel,
       temperature: 0.35,
       system: rewriteSystem,
       prompt: rewritePrompt,

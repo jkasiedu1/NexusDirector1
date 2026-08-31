@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekChatModel } from "@/lib/ai-providers";
 import { ChapterDraftSchema } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { object } = await generateObject({
-      model: deepSeekModel,
+      model: deepSeekChatModel,
       schema: CoherenceReportSchema,
       mode: "json",
       temperature: 0.2,
