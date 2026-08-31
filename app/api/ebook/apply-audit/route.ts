@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
-import { deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { z } from "zod";
 import { VoiceDNASchema } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES, PREMIUM_BOOK_STYLE_RULES, READER_NORMALIZATION_RULES } from "@/lib/editorial-style-bible";
@@ -186,7 +186,7 @@ async function reviseSectionBody(
   let text = "";
   try {
     const result = await generateText({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       temperature: 1,  // reasoner models require temperature=1
       maxTokens,
       system:

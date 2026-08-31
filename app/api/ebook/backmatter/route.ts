@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekReasonerModel, deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel, deepSeekModel } from "@/lib/ai-providers";
 import { EbookManifestSchema, BackMatterSchema } from "@/lib/schemas/ebook";
 import type { BackMatter } from "@/lib/schemas/ebook";
 import { SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
@@ -171,7 +171,7 @@ Generate the glossary, reading group guide, and recommended resources.`;
 
   try {
     const res = await generateObject({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       schema: BackMatterSchema.omit({ scriptureIndex: true }),
       mode: "json",
       temperature: 1,  // R1 requires temperature=1

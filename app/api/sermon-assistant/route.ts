@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { z } from "zod";
-import { deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       const maxTokens = calculateMaxTokens(transcriptLength);
       
       const { text } = await generateText({
-        model: deepSeekReasonerModel,
+        model: deepSeekV4ProModel,
         temperature: 0.3,
         maxTokens,
         system: outlineSystemPrompt(),
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     const retryMaxTokens = Math.min(maxTokens + 2000, 18000); // Add buffer for retry
     
     const first = await generateText({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       temperature: 0.25,
       maxTokens,
       system: commandSystemPrompt(),
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
 
     if (looksAggressivelyTrimmed(parsed.organizedMarkdown, markdown, parsed.command)) {
       const retry = await generateText({
-        model: deepSeekReasonerModel,
+        model: deepSeekV4ProModel,
         temperature: 0.2,
         maxTokens: retryMaxTokens,
         system: [

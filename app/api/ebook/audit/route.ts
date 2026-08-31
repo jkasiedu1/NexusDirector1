@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
-import { deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { z } from "zod";
 import { EbookManifestSchema } from "@/lib/schemas/ebook";
 import type { EbookManifest, VoiceDNA } from "@/lib/schemas/ebook";
@@ -478,7 +478,7 @@ async function runScriptureAudit(segments: SegmentMeta[]): Promise<ScriptureIssu
 
   try {
     const { text } = await generateText({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       maxTokens: 4096,
       prompt: `You are a manuscript editor specializing in scripture citation accuracy. Review the passages below and identify ONLY genuine issues:
 
@@ -590,7 +590,7 @@ Respond ONLY with valid JSON (no markdown fences, no commentary outside the JSON
 }`;
 
   try {
-    const { text } = await generateText({ model: deepSeekReasonerModel, prompt, maxTokens: 24000 });
+    const { text } = await generateText({ model: deepSeekV4ProModel, prompt, maxTokens: 24000 });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { conceptDuplicates: [], phraseAmendments: [], wordAmendments: [] };
     return JSON.parse(jsonMatch[0]) as {
@@ -629,7 +629,7 @@ async function runContradictionAudit(segments: SegmentMeta[]): Promise<Contradic
 
   try {
     const { text } = await generateText({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       maxTokens: 6000,
       prompt: `You are a developmental editor checking a multi-chapter book manuscript for logical contradictions across chapters.
 

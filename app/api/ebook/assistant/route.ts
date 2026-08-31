@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { createHash } from "crypto";
-import { deepSeekModel, deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekModel, deepSeekV4ProModel } from "@/lib/ai-providers";
 import {
   EbookManifestSchema,
   SectionDraftSchema,
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
   // Quality-fix: resolving a failed quality report across the manuscript
   // Back matter generation: building glossary/scripture index from scratch
   const isStructuralOp = /\b(reorder\s+chapter|move\s+(?:chapter|section)|merge\s+chapter|split\s+chapter|add\s+a?\s*chapter|remove\s+chapter|delete\s+chapter|restructure|reorganize|rearrange\s+chapter|add\s+a?\s*section|swap\s+chapter|fix\s+all|remove\s+all|add\s+(?:takeaways|questions|conclusions?)\s+to\s+all|book[- ]wide|across\s+all\s+chapters|every\s+chapter|fix\s+(?:the\s+)?(?:quality|issues?|errors?|problems?)|resolve\s+(?:quality|issues?)|build\s+(?:the\s+)?(?:glossary|scripture\s+index|back\s+matter|reading\s+guide)|generate\s+(?:the\s+)?(?:glossary|scripture\s+index|back\s+matter)|create\s+(?:the\s+)?(?:glossary|scripture\s+index|back\s+matter))\b/i.test(instruction);
-  const selectedModel = isStructuralOp ? deepSeekReasonerModel : deepSeekModel;
+  const selectedModel = isStructuralOp ? deepSeekV4ProModel : deepSeekModel;
 
   // Track which sections are truncated so we can restore original content if the AI loses words
   const truncatedSections = new Set<string>();

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekModel, deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekModel, deepSeekV4ProModel } from "@/lib/ai-providers";
 import { ProduceInputSchema, AcademyPackageSchema, AcademyShellSchema } from "@/lib/schemas/academy";
 
 export const runtime = "nodejs";
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         let contentMap: ContentMap = { themes: [] };
         if (phase0Source) {
           const { object: map } = await generateObject({
-            model: deepSeekReasonerModel,
+            model: deepSeekV4ProModel,
             schema: ContentMapSchema,
             schemaName: "ContentMap",
             schemaDescription: "Distinct major themes found in the source material",

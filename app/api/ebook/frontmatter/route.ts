@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
-import { deepSeekReasonerModel, deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel, deepSeekModel } from "@/lib/ai-providers";
 import { FrontMatterRequestSchema, FrontBackMatterSchema } from "@/lib/schemas/ebook";
 import { PREMIUM_BOOK_STYLE_RULES, READER_NORMALIZATION_RULES, SOURCE_LOCK_RULES, stripAudienceLanguage } from "@/lib/editorial-style-bible";
 
@@ -107,7 +107,7 @@ ${input.architecture.chapters.map((c, i) => `Chapter ${i + 1}: "${c.title}"\n  C
   // fall back to V3 Pro — same quality for structured generation tasks.
   try {
     const { object } = await generateObject({
-      model: deepSeekReasonerModel,
+      model: deepSeekV4ProModel,
       schema: IntroConclSchema,
       mode: "json",
       temperature: 1,  // reasoner requires temperature=1

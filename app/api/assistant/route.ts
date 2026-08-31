@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { deepSeekModel, deepSeekReasonerModel } from "@/lib/ai-providers";
+import { deepSeekModel, deepSeekV4ProModel } from "@/lib/ai-providers";
 import { AcademyPackageSchema } from "@/lib/schemas/academy";
 import type { AcademyPackage } from "@/lib/schemas/academy";
 import { SiteConfigSchema } from "@/lib/schemas/site-config";
@@ -302,7 +302,7 @@ ${moduleLedger.map((e) =>
 
     // Route structural operations to R1 (reasoning model) — they require
     // multi-step thinking about concept ownership and curriculum coherence.
-    const selectedModel = isStructuralOp ? deepSeekReasonerModel : deepSeekModel;
+    const selectedModel = isStructuralOp ? deepSeekV4ProModel : deepSeekModel;
 
     const { object } = await generateObject({
       model: selectedModel,
