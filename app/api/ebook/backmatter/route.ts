@@ -4,7 +4,7 @@ import { z } from "zod";
 import { deepSeekV4ProModel, deepSeekModel } from "@/lib/ai-providers";
 import { EbookManifestSchema, BackMatterSchema } from "@/lib/schemas/ebook";
 import type { BackMatter } from "@/lib/schemas/ebook";
-import { SOURCE_LOCK_RULES } from "@/lib/editorial-style-bible";
+import { SOURCE_LOCK_RULES, READER_NORMALIZATION_RULES, PREMIUM_BOOK_STYLE_RULES } from "@/lib/editorial-style-bible";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
