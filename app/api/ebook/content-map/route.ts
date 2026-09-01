@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
                 model: deepSeekV4ProModel,
                 providerOptions: {
                   openai: {
-                    reasoningEffort: "none",
+                    reasoningEffort: "high",
                   },
                 },
                 schema: SlotSegmentsSchema,
