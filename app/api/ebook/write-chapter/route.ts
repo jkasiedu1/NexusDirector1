@@ -179,6 +179,11 @@ ${sectionPayload}`;
       try {
         const { object } = await generateObject({
           model: deepSeekV4ProModel,
+          providerOptions: {
+            openai: {
+              reasoningEffort: "high",
+            },
+          },
           schema: WriteChapterOutputSchema,
           mode: "json",
           maxTokens: 16_000, // G2: explicit ceiling for full-chapter output

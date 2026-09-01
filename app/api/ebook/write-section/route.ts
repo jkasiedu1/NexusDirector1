@@ -59,6 +59,11 @@ async function fallbackSectionBody(input: z.infer<typeof WriteSectionRequestSche
   try {
     const { text } = await generateText({
       model: deepSeekV4ProModel,
+      providerOptions: {
+        openai: {
+          reasoningEffort: "none",
+        },
+      },
       temperature: 0.5,
       maxTokens: 1200,
       system: `You are a professional book editor. Rewrite the raw spoken transcript below into clean, polished book prose.
@@ -857,6 +862,11 @@ ${isAbsoluteFirstSection ? "" : "\nTRANSITIONAL OPENING: Open with \"Having seen
 
     const { object } = await generateObject({
       model: deepSeekV4ProModel,
+      providerOptions: {
+        openai: {
+          reasoningEffort: "high",
+        },
+      },
       schema: SectionBodySchema,
       mode: "json",
       temperature: 0.7,
