@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, generateText } from "ai";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { VoiceDNASchema, VoiceDNARequestSchema } from "@/lib/schemas/ebook";
 
 export const runtime = "nodejs";
@@ -194,7 +194,12 @@ closingPattern
   try {
     try {
       const { object } = await generateObject({
-        model: deepSeekModel,
+        model: deepSeekV4ProModel,
+        providerOptions: {
+          openai: {
+            reasoningEffort: "high",
+          },
+        },
         schema: VoiceDNASchema,
         mode: "json",
         temperature: 0.2,
@@ -208,7 +213,12 @@ closingPattern
     } catch {
       // DeepSeek occasionally returns near-JSON text in json mode; strict re-ask + local validation recovers safely.
       const { text } = await generateText({
-        model: deepSeekModel,
+        model: deepSeekV4ProModel,
+        providerOptions: {
+          openai: {
+            reasoningEffort: "high",
+          },
+        },
         temperature: 0.2,
         maxTokens: 1800,
         system: `${systemPrompt}\n\nReturn ONLY a valid JSON object. No markdown fences. No commentary.`,

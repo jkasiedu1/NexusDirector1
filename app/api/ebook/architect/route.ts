@@ -265,6 +265,11 @@ async function architectOneChapterFromTranscript(
 
   const { object } = await generateObject({
     model: deepSeekV4ProModel,
+    providerOptions: {
+      openai: {
+        reasoningEffort: "max",
+      },
+    },
     schema: SingleChapterPlanSchema,
     mode: "json",
     temperature: 1,
@@ -560,6 +565,11 @@ export async function POST(req: NextRequest) {
       {
         const result = await generateObject({
         model: deepSeekV4ProModel,
+        providerOptions: {
+          openai: {
+            reasoningEffort: "max",
+          },
+        },
         schema: MinimalArchitectureSchema,
         mode: "json",
         maxTokens: 16000,

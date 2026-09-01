@@ -63,6 +63,11 @@ export async function POST(req: NextRequest) {
   try {
     const { text } = await generateText({
       model: deepSeekV4ProModel,
+      providerOptions: {
+        openai: {
+          reasoningEffort: "none",
+        },
+      },
       temperature: 0.1,
       system: `You are a content signal filter for a book production pipeline.
 

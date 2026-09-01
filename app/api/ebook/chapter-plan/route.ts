@@ -192,6 +192,11 @@ ${excerptPayload}`;
   const encoder = new TextEncoder();
   const generatePromise = generateObject({
     model: deepSeekV4ProModel,
+    providerOptions: {
+      openai: {
+        reasoningEffort: "max",
+      },
+    },
     schema: ChapterPlanLLMSchema,
     mode: "json",
     temperature: 1, // reasoner requires temperature=1

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { deepSeekModel } from "@/lib/ai-providers";
+import { deepSeekV4ProModel } from "@/lib/ai-providers";
 import { ContentMapRequestSchema, QuoteSchema } from "@/lib/schemas/ebook";
 
 export const runtime = "nodejs";
@@ -163,7 +163,12 @@ export async function POST(req: NextRequest) {
             chunkRanges.map(async (range) => {
               const chunkText = slotWords.slice(range.start, range.end).join(" ");
               const { object } = await generateObject({
-                model: deepSeekModel,
+                model: deepSeekV4ProModel,
+                providerOptions: {
+                  openai: {
+                    reasoningEffort: "none",
+                  },
+                },
                 schema: SlotSegmentsSchema,
                 mode: "json",
                 temperature: 0.2,
@@ -256,7 +261,12 @@ export async function POST(req: NextRequest) {
       .join("\n");
 
     const { object: synthesis } = await generateObject({
-      model: deepSeekModel,
+      model: deepSeekV4ProModel,
+      providerOptions: {
+        openai: {
+          reasoningEffort: "high",
+        },
+      },
       schema: SynthesisSchema,
       mode: "json",
       temperature: 0.2,
